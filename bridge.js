@@ -24,6 +24,9 @@ let playerContext = {
 };
 let latestRoomState = null;
 let pendingDrawnCard = null;  // Card drawn, awaiting swap or discard
+let pendingAbility = null;    // Ability available to use
+let selectingTargets = false; // Mode for selecting targets
+let selectedTargets = [];     // Targets selected so far
 
 async function joinGame(username, roomId = null) {
     if (!username) {
@@ -119,6 +122,9 @@ function handleSocketMessage(event) {
         case 'round_started':
         case 'turn_ended':
             pendingDrawnCard = null;
+            pendingAbility = null;
+            selectingTargets = false;
+            selectedTargets = [];
             latestRoomState = message.data.room;
             renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
             break;
@@ -135,8 +141,15 @@ function handleSocketMessage(event) {
             notify(`You drew ${formatCard(message.data.card)}. Choose: swap with a hand card or discard.`);
             renderBoard(message.data.room, playerContext.playerId);
             break;
+        case 'ability_opportunity':
+            pendingAbility = message.data.ability;
+            notify(message.data.message);
+            latestRoomState = message.data.room;
+            renderBoard(message.data.room, playerContext.playerId);
+            startAbilitySelection(pendingAbility);
+            break;
         case 'ability_resolution':
-            const { ability, card, card_index, target_player_id, duration } = message.data;
+            const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
 
             if (ability === 'peek_self' && playerContext.playerId === target_player_id) {
                 const cardContainer = document.getElementById('card-container');
@@ -145,18 +158,27 @@ function handleSocketMessage(event) {
                     const originalText = cardButton.innerText; // "Card Back"
                     
                     cardButton.innerText = formatCard(card);
+                    cardButton.classList.add('revealed');
 
                     setTimeout(() => {
                         cardButton.innerText = originalText;
-                    }, duration || 3000);
+                        cardButton.classList.remove('revealed');
+                    }, duration || 5000);
                 }
             } else if (ability === 'peek_other') {
                 if (latestRoomState) {
                     const targetPlayer = latestRoomState.players.find(p => p.player_id === target_player_id);
                     const targetUsername = targetPlayer ? targetPlayer.username : 'another player';
                     const text = `You see ${targetUsername}'s card #${card_index + 1}: ${formatCard(card)}`;
-                    notify(text, duration || 3000);
+                    notify(text, duration || 5000);
+                    alert(text); // Also show alert for explicit visibility
                 }
+            } else if (ability === 'look_and_swap' && first && second) {
+                const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
+                const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
+                const msg = `Card 1 (${p1.username}): ${formatCard(first.card)}\nCard 2 (${p2.username}): ${formatCard(second.card)}`;
+                alert("Memorize these cards:\n" + msg);
+                notify(msg.replace('\n', ', '), 10000);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
             }
@@ -227,6 +249,106 @@ function callCambio() {
 
 function startGame() {
     sendMessage('start_game');
+}
+
+function skipAbility() {
+    sendMessage('skip_ability');
+    pendingAbility = null;
+    selectingTargets = false;
+    selectedTargets = [];
+    const panel = document.getElementById('ability-panel');
+    if (panel) panel.style.display = 'none';
+}
+
+function startAbilitySelection(ability) {
+    selectingTargets = true;
+    selectedTargets = [];
+    const panel = document.getElementById('ability-panel');
+    const nameDisplay = document.getElementById('ability-name-display');
+    const desc = document.getElementById('ability-desc');
+    const controls = document.getElementById('ability-controls');
+
+    if (panel && nameDisplay && desc) {
+        panel.style.display = 'block';
+        nameDisplay.innerText = ability;
+        if (controls) controls.innerHTML = '';
+
+        let instructions = "";
+        if (ability === 'peek_self') instructions = "Click one of YOUR cards to peek at it.";
+        else if (ability === 'peek_other') instructions = "Click one of an OPPONENT'S cards to peek at it.";
+        else if (ability === 'blind_swap') instructions = "Click one of YOUR cards, then one of an OPPONENT'S cards to swap them.";
+        else if (ability === 'look_and_swap') instructions = "Click ANY two cards to look at them. (Swap optional)";
+
+        desc.innerText = instructions;
+    }
+}
+
+function handleCardClick(playerId, cardIndex, isOwnCard) {
+    if (!selectingTargets) return;
+
+    // Add target
+    selectedTargets.push({ player_id: playerId, card_index: cardIndex });
+
+    // Check if we have enough targets
+    if (pendingAbility === 'peek_self') {
+        if (!isOwnCard) {
+            alert("Please select one of YOUR cards.");
+            selectedTargets = [];
+            return;
+        }
+        sendMessage('use_ability', { card_index: cardIndex });
+        selectingTargets = false;
+        pendingAbility = null; // Wait for result
+    } else if (pendingAbility === 'peek_other') {
+        if (isOwnCard) {
+            alert("Please select an OPPONENT'S card.");
+            selectedTargets = [];
+            return;
+        }
+        sendMessage('use_ability', { target_player_id: playerId, card_index: cardIndex });
+        selectingTargets = false;
+        pendingAbility = null;
+    } else if (pendingAbility === 'blind_swap') {
+        if (selectedTargets.length === 1) {
+             if (!isOwnCard) {
+                 alert("First select one of YOUR cards.");
+                 selectedTargets = [];
+             } else {
+                 notify("Select an opponent's card to swap with.");
+             }
+        } else if (selectedTargets.length === 2) {
+            const first = selectedTargets[0];
+            const second = selectedTargets[1];
+            if (first.player_id === second.player_id) {
+                alert("You must swap with an opponent.");
+                selectedTargets = [first]; // Keep first
+                return;
+            }
+            sendMessage('use_ability', {
+                target_player_id: second.player_id,
+                own_card_index: first.card_index,
+                target_card_index: second.card_index
+            });
+            selectingTargets = false;
+            pendingAbility = null;
+        }
+    } else if (pendingAbility === 'look_and_swap') {
+        if (selectedTargets.length < 2) {
+            notify(`Selected ${selectedTargets.length}/2 cards.`);
+        } else {
+            // Ask for swap immediately? Or just look?
+            // "Look and swap (look at any two cards and decide whether you want to swap them.)"
+            // For now, prompt user:
+            const doSwap = confirm("Do you want to swap these two cards after looking?");
+            sendMessage('use_ability', {
+                first_target: selectedTargets[0],
+                second_target: selectedTargets[1],
+                swap: doSwap
+            });
+            selectingTargets = false;
+            pendingAbility = null;
+        }
+    }
 }
 
 function renderBoard(room, yourPlayerId) {
@@ -349,6 +471,12 @@ function renderBoard(room, yourPlayerId) {
             }
         }
         
+        // Ability panel visibility
+        const abilityPanel = document.getElementById('ability-panel');
+        if (abilityPanel) {
+            abilityPanel.style.display = pendingAbility ? 'block' : 'none';
+        }
+
         const topCardContainer = document.getElementById('top-card');
         if (topCardContainer) {
             const topCard = room.game_state.discard_pile.slice(-1)[0];
@@ -400,7 +528,12 @@ function renderBoard(room, yourPlayerId) {
                     btn.innerText = isVisible ? formatCard(card) : "🂠";
                     btn.title = isViewingPhase ? (isBottomCard ? 'Memorize this card!' : 'Face down') : (isAwaitingDrawChoice ? `Click to swap with drawn card` : `Card #${index + 1}`);
                     if (!isViewingPhase) {
-                        if (isAwaitingDrawChoice) {
+                        if (selectingTargets) {
+                            btn.addEventListener('click', () => handleCardClick(yourPlayerId, index, true));
+                            btn.style.borderColor = "#00acc1";
+                            btn.style.cursor = "pointer";
+                            btn.innerText = "🎯";
+                        } else if (isAwaitingDrawChoice) {
                             btn.addEventListener('click', () => resolveDraw('swap', index));
                         } else {
                             btn.addEventListener('click', () => playCard(card));
@@ -420,11 +553,13 @@ function renderBoard(room, yourPlayerId) {
             opponentsContainer.innerHTML = '';
             const mustResolveDraw = !!pendingDrawnCard;
             room.players.forEach(player => {
+                if (player.player_id === yourPlayerId) return; // Skip self
+
                 const section = document.createElement('div');
                 section.className = 'opponent-hand';
                 const nameEl = document.createElement('div');
                 nameEl.className = 'opponent-name';
-                nameEl.innerText = (player.player_id === yourPlayerId ? 'You' : player.username) + (player.is_connected ? ' ●' : '');
+                nameEl.innerText = player.username + (player.is_connected ? ' ●' : '');
                 section.appendChild(nameEl);
                 const cardsDiv = document.createElement('div');
                 cardsDiv.className = 'opponent-cards';
@@ -432,7 +567,13 @@ function renderBoard(room, yourPlayerId) {
                     const btn = document.createElement('button');
                     btn.innerText = '🂠';
                     btn.title = !mustResolveDraw ? `Try to eliminate ${player.username}'s card #${index + 1} (must match discard)` : (mustResolveDraw ? 'Resolve your drawn card first' : 'Face down');
-                    if (!mustResolveDraw) {
+
+                    if (selectingTargets) {
+                         btn.addEventListener('click', () => handleCardClick(player.player_id, index, false));
+                         btn.style.borderColor = "#00acc1";
+                         btn.style.cursor = "pointer";
+                         btn.innerText = "🎯";
+                    } else if (!mustResolveDraw) {
                         btn.addEventListener('click', () => eliminateCard(player.player_id, index));
                     } else {
                         btn.disabled = true;
@@ -539,3 +680,4 @@ window.resolveDraw = resolveDraw;
 window.callCambio = callCambio;
 window.copyRoomId = copyRoomId;
 window.startGame = startGame;
+window.skipAbility = skipAbility;

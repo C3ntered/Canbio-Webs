@@ -286,8 +286,14 @@
             <div id="viewing-countdown" style="display:none; font-size: 48px; text-align: center; margin: 10px 0; color: #FF9800;"></div>
             <div id="draw-choice-panel" style="display:none; padding: 15px; background: #fff3e0; border-radius: 8px; margin: 15px 0; border: 2px solid #ff9800;">
                 <p><strong>You drew:</strong> <span id="drawn-card-display"></span></p>
-                <p>Swap with a hand card (any card), or discard to pile (must match top):</p>
+                <p>Swap with a hand card (any card), or discard to pile:</p>
                 <button id="discard-drawn-btn" onclick="resolveDraw('discard')">Discard to pile</button>
+            </div>
+            <div id="ability-panel" style="display:none; padding: 15px; background: #e0f7fa; border-radius: 8px; margin: 15px 0; border: 2px solid #00acc1;">
+                <p><strong>Ability Available:</strong> <span id="ability-name-display"></span></p>
+                <p id="ability-desc">Do you want to use this ability?</p>
+                <div id="ability-controls"></div>
+                <button onclick="skipAbility()" style="margin-top: 10px; background-color: #78909c;">Skip Ability</button>
             </div>
             <div class="action-buttons">
                 <button id="draw-card-btn" onclick="drawCard()">Draw Card</button>
