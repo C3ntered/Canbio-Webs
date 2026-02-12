@@ -142,6 +142,7 @@ function handleSocketMessage(event) {
             renderBoard(message.data.room, playerContext.playerId);
             break;
         case 'ability_opportunity':
+            pendingDrawnCard = null; // Clear drawn card state to hide draw panel
             pendingAbility = message.data.ability;
             notify(message.data.message);
             latestRoomState = message.data.room;
