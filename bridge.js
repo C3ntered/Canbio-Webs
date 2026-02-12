@@ -27,6 +27,7 @@ let pendingDrawnCard = null;  // Card drawn, awaiting swap or discard
 let pendingAbility = null;    // Ability available to use
 let selectingTargets = false; // Mode for selecting targets
 let selectedTargets = [];     // Targets selected so far
+let pendingSwapDecision = false; // Mode for deciding whether to swap
 
 async function joinGame(username, roomId = null) {
     if (!username) {
@@ -125,6 +126,7 @@ function handleSocketMessage(event) {
             pendingAbility = null;
             selectingTargets = false;
             selectedTargets = [];
+            pendingSwapDecision = false;
             latestRoomState = message.data.room;
             renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
             break;
@@ -151,8 +153,8 @@ function handleSocketMessage(event) {
             pendingAbility = message.data.ability;
             notify(message.data.message);
             latestRoomState = message.data.room;
-            renderBoard(message.data.room, playerContext.playerId);
             startAbilitySelection(pendingAbility);
+            renderBoard(message.data.room, playerContext.playerId);
             break;
         case 'ability_resolution':
             const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
@@ -180,15 +182,50 @@ function handleSocketMessage(event) {
                     alert(text); // Also show alert for explicit visibility
                 }
             } else if (ability === 'look_and_swap' && first && second) {
+                // Reveal the cards visually
+                const revealCard = (pid, idx, c) => {
+                    const selector = pid === playerContext.playerId
+                        ? `#card-container > button:nth-child(${idx + 1})`
+                        : `#opponents-container .opponent-hand:has(.opponent-name:contains('${latestRoomState.players.find(p => p.player_id === pid)?.username}')) .opponent-cards button:nth-child(${idx + 1})`;
+
+                    // Simple logic for finding the button. For opponents, it's tricky with :contains, let's just use index if we can find the player section.
+                    let btn = null;
+                    if (pid === playerContext.playerId) {
+                         const container = document.getElementById('card-container');
+                         if (container) btn = container.children[idx];
+                    } else {
+                        // Find opponent section
+                        const oppContainer = document.getElementById('opponents-container');
+                        if (oppContainer) {
+                            const oppIndex = latestRoomState.players.filter(p => p.player_id !== playerContext.playerId).findIndex(p => p.player_id === pid);
+                            if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
+                                const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
+                                if (cardsDiv) btn = cardsDiv.children[idx];
+                            }
+                        }
+                    }
+
+                    if (btn) {
+                        const originalText = btn.innerText;
+                        btn.innerText = formatCard(c);
+                        btn.classList.add('revealed');
+                        setTimeout(() => {
+                            btn.innerText = originalText;
+                            btn.classList.remove('revealed');
+                        }, 5000);
+                    }
+                };
+
+                revealCard(first.player_id, first.card_index, first.card);
+                revealCard(second.player_id, second.card_index, second.card);
+
+                // Show swap decision UI
+                pendingSwapDecision = true;
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
-                const msg = `Card 1 (${p1.username}): ${formatCard(first.card)}\nCard 2 (${p2.username}): ${formatCard(second.card)}`;
+                notify(`You saw: ${formatCard(first.card)} (${p1.username}) and ${formatCard(second.card)} (${p2.username})`);
 
-                // Use timeout to allow UI updates if any before confirm
-                setTimeout(() => {
-                    const doSwap = confirm(msg + "\n\nDo you want to swap them?");
-                    sendMessage('resolve_swap_decision', { swap: doSwap });
-                }, 100);
+                renderBoard(latestRoomState, playerContext.playerId);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
             }
@@ -259,6 +296,13 @@ function callCambio() {
 
 function startGame() {
     sendMessage('start_game');
+}
+
+function resolveSwapDecision(doSwap) {
+    sendMessage('resolve_swap_decision', { swap: doSwap });
+    pendingSwapDecision = false;
+    const panel = document.getElementById('ability-panel');
+    if (panel) panel.style.display = 'none';
 }
 
 function skipAbility() {
@@ -480,7 +524,29 @@ function renderBoard(room, yourPlayerId) {
         // Ability panel visibility
         const abilityPanel = document.getElementById('ability-panel');
         if (abilityPanel) {
-            abilityPanel.style.display = pendingAbility ? 'block' : 'none';
+            if (pendingSwapDecision) {
+                abilityPanel.style.display = 'block';
+                const nameDisplay = document.getElementById('ability-name-display');
+                const desc = document.getElementById('ability-desc');
+                const controls = document.getElementById('ability-controls');
+
+                if (nameDisplay) nameDisplay.innerText = "Swap Decision";
+                if (desc) desc.innerText = "Do you want to swap the cards you just saw?";
+                if (controls) {
+                    controls.innerHTML = `
+                        <button onclick="resolveSwapDecision(true)" style="background-color: #4CAF50; margin-right: 10px;">Swap</button>
+                        <button onclick="resolveSwapDecision(false)" style="background-color: #f44336;">Keep</button>
+                    `;
+                }
+                // Hide Skip Ability button during decision if possible, or repurpose it?
+                // The main skip button is outside controls div in HTML. We might want to hide it.
+                // But let's leave it for now.
+            } else {
+                abilityPanel.style.display = pendingAbility ? 'block' : 'none';
+                // Clear controls if not decision
+                const controls = document.getElementById('ability-controls');
+                if (controls && !pendingAbility) controls.innerHTML = '';
+            }
         }
 
         const callCambioBtn = document.getElementById('call-cambio-btn');

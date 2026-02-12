@@ -1034,18 +1034,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 player.pending_swap_targets = None
 
                 cambio_winner = room_manager.next_turn(room_id)
-                    room = room_manager.get_room(room_id)
+                room = room_manager.get_room(room_id)
+                await room_manager.broadcast_to_room(room_id, {
+                    "type": "turn_ended",
+                    "data": {"room": room.model_dump(mode='json')}
+                })
+                if cambio_winner:
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "turn_ended",
-                        "data": {"room": room.model_dump(mode='json')}
+                        "type": "game_ended",
+                        "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
                     })
-                    if cambio_winner:
-                        await room_manager.broadcast_to_room(room_id, {
-                            "type": "game_ended",
-                            "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
-                        })
-                else:
-                    await websocket.send_json({"type": "error", "message": "Invalid ability usage"})
 
             elif msg_type == "skip_ability":
                 if not player.pending_ability:
