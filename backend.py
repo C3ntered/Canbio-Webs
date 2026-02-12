@@ -58,6 +58,7 @@ class Player(BaseModel):
     last_drawn_card: Optional[Card] = None
     pending_drawn_card: Optional[Card] = None  # card drawn, awaiting swap or discard choice
     pending_ability: Optional[str] = None  # Ability waiting to be used or skipped
+    pending_swap_targets: Optional[Dict] = None # Stores targets for look_and_swap decision phase
 
 class GameState(BaseModel):
     current_turn: Optional[str] = None  # player_id
@@ -438,21 +439,20 @@ class GameRoomManager:
             if not validate_index(acting_player.hand, own_index) or not validate_index(target.hand, target_index):
                 return False
             acting_player.hand[own_index], target.hand[target_index] = target.hand[target_index], acting_player.hand[own_index]
+
+            await self.broadcast_to_room(room_id, {
+                "type": "cards_swapped",
+                "data": {
+                    "message": f"{acting_player.username} blind swapped a card with {target.username}.",
+                    "room": room.model_dump(mode='json')
+                }
+            })
             return True
 
         if ability == "look_and_swap":
+            # Phase 1: Request to Look
             first = payload.get("first_target")
             second = payload.get("second_target")
-
-            # This handles the "Look" part. The "Swap" part is handled separately if needed,
-            # but for now we'll support doing both if requested, or just looking.
-            # However, since we want "Look then Decide", we might need a multi-step.
-            # Given complexity, we'll just reveal cards and if `swap` is true in payload, we swap.
-            # But the UI should probably just ask user to confirm swap BEFORE sending this if possible,
-            # or we need to implement the 2-step process.
-            # Let's support the 2-step process by using pending_ability = "swap_decision"
-
-            do_swap = payload.get("swap", False) # If true, just swap immediately (legacy/simple mode)
 
             def resolve_target(target_payload):
                 pid = target_payload.get("player_id")
@@ -470,23 +470,28 @@ class GameRoomManager:
             first_card = first_player.hand[first_idx]
             second_card = second_player.hand[second_idx]
 
-            # Always reveal the cards first
+            # Store targets for the decision phase
+            acting_player.pending_swap_targets = {
+                "first_player_id": first_player.player_id,
+                "first_card_index": first_idx,
+                "second_player_id": second_player.player_id,
+                "second_card_index": second_idx
+            }
+            acting_player.pending_ability = "swap_decision" # New state
+
+            # Reveal the cards to the acting player
             await self.send_to_player(room_id, acting_player.player_id, {
                 "type": "ability_resolution",
                 "data": {
-                    "ability": ability,
+                    "ability": "look_and_swap",
                     "first": {"player_id": first_player.player_id, "card_index": first_idx, "card": first_card.model_dump(mode='json')},
-                    "second": {"player_id": second_player.player_id, "card_index": second_idx, "card": second_card.model_dump(mode='json')}
+                    "second": {"player_id": second_player.player_id, "card_index": second_idx, "card": second_card.model_dump(mode='json')},
+                    "message": "Review the cards. Do you want to swap them?"
                 }
             })
 
-            if do_swap:
-                first_player.hand[first_idx], second_player.hand[second_idx] = second_card, first_card
-            else:
-                # If not swapping immediately, we might want to give them a chance to swap.
-                # But for now, let's assume if they didn't send swap=True, they don't want to swap.
-                pass
-
+            # Return True to indicate the *Look* action was successful, but we don't end turn yet
+            # because pending_ability is now set to 'swap_decision'
             return True
 
         return False
@@ -921,10 +926,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     # Discard the drawn card. No matching required as we are just discarding the card we drew.
                     # "You can then choose to discard the card you drew"
                     card = player.pending_drawn_card
-                    
+
                     room.game_state.discard_pile.append(card)
                     player.pending_drawn_card = None
-                    
+
                     # Check for ability
                     ability_name = get_card_ability(card)
                     if ability_name:
@@ -975,9 +980,60 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
                 resolved = await room_manager.resolve_card_ability(room, player, ability_name, payload)
                 if resolved:
-                    player.pending_ability = None
-                    # End turn
-                    cambio_winner = room_manager.next_turn(room_id)
+                    # If the ability moved us to a decision state (like 'swap_decision'), do NOT end turn yet
+                    if player.pending_ability == "swap_decision":
+                        # Wait for next message 'resolve_swap_decision'
+                        pass
+                    else:
+                        player.pending_ability = None
+                        # End turn
+                        cambio_winner = room_manager.next_turn(room_id)
+                        room = room_manager.get_room(room_id)
+                        await room_manager.broadcast_to_room(room_id, {
+                            "type": "turn_ended",
+                            "data": {"room": room.model_dump(mode='json')}
+                        })
+                        if cambio_winner:
+                            await room_manager.broadcast_to_room(room_id, {
+                                "type": "game_ended",
+                                "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                            })
+                else:
+                    await websocket.send_json({"type": "error", "message": "Invalid ability usage"})
+
+            elif msg_type == "resolve_swap_decision":
+                if player.pending_ability != "swap_decision" or not player.pending_swap_targets:
+                    await websocket.send_json({"type": "error", "message": "No pending swap decision"})
+                    continue
+
+                do_swap = message.get("data", {}).get("swap", False)
+                targets = player.pending_swap_targets
+
+                if do_swap:
+                    # Execute swap
+                    p1 = next((p for p in room.players if p.player_id == targets["first_player_id"]), None)
+                    p2 = next((p for p in room.players if p.player_id == targets["second_player_id"]), None)
+
+                    if p1 and p2:
+                        idx1 = targets["first_card_index"]
+                        idx2 = targets["second_card_index"]
+                        # Validate indices again just in case
+                        if 0 <= idx1 < len(p1.hand) and 0 <= idx2 < len(p2.hand):
+                            p1.hand[idx1], p2.hand[idx2] = p2.hand[idx2], p1.hand[idx1]
+                            room = room_manager.get_room(room_id)
+                            await room_manager.broadcast_to_room(room_id, {
+                                "type": "cards_swapped",
+                                "data": {
+                                    "message": f"{player.username} swapped two cards.",
+                                    "room": room.model_dump(mode='json')
+                                }
+                            })
+
+                # Clear state and end turn
+                player.pending_ability = None
+                player.pending_swap_targets = None
+
+                cambio_winner = room_manager.next_turn(room_id)
                     room = room_manager.get_room(room_id)
                     await room_manager.broadcast_to_room(room_id, {
                         "type": "turn_ended",
@@ -1055,6 +1111,22 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 })
             
             elif msg_type == "call_cambio":
+                # Check if it's the player's turn
+                if room.game_state.current_turn != player_id:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "You can only call Cambio on your turn"
+                    })
+                    continue
+
+                # Check if they have already drawn a card or have a pending ability (must be start of turn)
+                if player.pending_drawn_card or player.pending_ability:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "You can only call Cambio at the start of your turn (before drawing)"
+                    })
+                    continue
+
                 if room.game_state.cambio_called:
                     await websocket.send_json({
                         "type": "error",
@@ -1064,7 +1136,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 
                 room.game_state.cambio_called = True
                 room.game_state.cambio_caller = player_id
-                room.game_state.final_round_turns = len(room.players) - 1
+                # final_round_turns will be initialized in next_turn()
 
                 await room_manager.broadcast_to_room(room_id, {
                     "type": "cambio_called",
@@ -1073,6 +1145,19 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         "room": room.model_dump(mode='json')
                     }
                 })
+
+                # End the turn immediately
+                cambio_winner = room_manager.next_turn(room_id)
+                room = room_manager.get_room(room_id)
+                await room_manager.broadcast_to_room(room_id, {
+                    "type": "turn_ended",
+                    "data": {"room": room.model_dump(mode='json')}
+                })
+                if cambio_winner:
+                    await room_manager.broadcast_to_room(room_id, {
+                        "type": "game_ended",
+                        "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                    })
             
             elif msg_type == "eliminate_card":
                 elimination_data = message.get("data", {})
