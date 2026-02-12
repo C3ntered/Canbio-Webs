@@ -142,6 +142,52 @@ function handleSocketMessage(event) {
             notify(message.data.message);
             latestRoomState = message.data.room;
             renderBoard(message.data.room, playerContext.playerId);
+
+            // Highlight swapped cards
+            const { player1_id, card1_index, player2_id, card2_index } = message.data;
+            if (player1_id !== undefined && card1_index !== undefined &&
+                player2_id !== undefined && card2_index !== undefined) {
+
+                const highlight = (pid, idx) => {
+                     // Need to find the button element in the DOM.
+                     // The renderBoard function rebuilds the DOM, so we must find elements in the *new* DOM.
+                     // We added 'data-index' attribute to buttons in renderBoard to help with this.
+                     let btn = null;
+                     if (pid === playerContext.playerId) {
+                         const container = document.getElementById('card-container');
+                         if (container) {
+                             const buttons = Array.from(container.children);
+                             btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
+                         }
+                     } else {
+                        const oppContainer = document.getElementById('opponents-container');
+                        if (oppContainer) {
+                            // Find the opponent's container
+                            // Note: renderBoard iterates players to build this.
+                            // We need to find the correct .opponent-hand div.
+                            const allPlayers = latestRoomState.players;
+                            const opponents = allPlayers.filter(p => p.player_id !== playerContext.playerId);
+                            const oppIndex = opponents.findIndex(p => p.player_id === pid);
+
+                            if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
+                                const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
+                                if (cardsDiv) {
+                                     const buttons = Array.from(cardsDiv.children);
+                                     btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
+                                }
+                            }
+                        }
+                     }
+
+                     if (btn) {
+                         btn.classList.add('swapped-highlight');
+                         setTimeout(() => btn.classList.remove('swapped-highlight'), 3000);
+                     }
+                };
+
+                highlight(player1_id, card1_index);
+                highlight(player2_id, card2_index);
+            }
             break;
         case 'game_started':
         case 'round_started':
@@ -185,6 +231,9 @@ function handleSocketMessage(event) {
             const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
 
             if (ability === 'peek_self' && playerContext.playerId === target_player_id) {
+                const text = `You peeked at your card #${card_index + 1}: ${formatCard(card)}`;
+                notify(text, duration || 5000);
+
                 const cardContainer = document.getElementById('card-container');
                 if (cardContainer && cardContainer.children[card_index]) {
                     const cardButton = cardContainer.children[card_index];
@@ -721,16 +770,28 @@ function renderBoard(room, yourPlayerId) {
                 visualOrder.forEach(index => {
                     const card = me.hand[index];
                     const btn = document.createElement('button');
-                    // 2x2 matrix: indices 0,1 = top row; 2,3 = bottom row. Bottom two shown for 5 seconds.
-                    const isBottomCard = index === 2 || index === 3;
-                    const isVisible = (isViewingPhase && isBottomCard) || adminMode;
-                    btn.innerText = isVisible ? formatCard(card) : "🂠";
-                    btn.title = isViewingPhase ? (isBottomCard ? 'Memorize this card!' : 'Face down') : (isAwaitingDrawChoice ? `Click to swap with drawn card` : `Card #${index + 1}`);
-                    if (adminMode) {
-                        btn.style.background = "#e3f2fd";
-                        btn.style.color = "#000";
+                    btn.setAttribute('data-index', index);
+
+                    if (!card) {
+                        // Empty slot (hole)
+                        btn.innerText = "";
+                        btn.disabled = true;
+                        btn.style.border = "1px dashed #ccc";
+                        btn.style.background = "transparent";
+                        btn.style.cursor = "default";
+                    } else {
+                        // 2x2 matrix: indices 0,1 = top row; 2,3 = bottom row. Bottom two shown for 5 seconds.
+                        const isBottomCard = index === 2 || index === 3;
+                        const isVisible = (isViewingPhase && isBottomCard) || adminMode;
+                        btn.innerText = isVisible ? formatCard(card) : "🂠";
+                        btn.title = isViewingPhase ? (isBottomCard ? 'Memorize this card!' : 'Face down') : (isAwaitingDrawChoice ? `Click to swap with drawn card` : `Card #${index + 1}`);
+                        if (adminMode) {
+                            btn.style.background = "#e3f2fd";
+                            btn.style.color = "#000";
+                        }
                     }
-                    if (!isViewingPhase) {
+
+                    if (card && !isViewingPhase) {
                         // Priority 1: Selecting targets (Abilities)
                         if (selectingTargets) {
                             btn.addEventListener('click', (e) => {
@@ -789,18 +850,29 @@ function renderBoard(room, yourPlayerId) {
                 visualOrder.forEach(index => {
                     const card = player.hand[index];
                     const btn = document.createElement('button');
-                    if (adminMode) {
-                        btn.innerText = formatCard(card);
-                        btn.style.background = "#e3f2fd";
-                        btn.style.color = "#000";
-                        btn.style.fontSize = "14px";
+                    btn.setAttribute('data-index', index);
+
+                    if (!card) {
+                        // Empty slot
+                        btn.innerText = "";
+                        btn.disabled = true;
+                        btn.style.border = "1px dashed #ccc";
+                        btn.style.background = "transparent";
+                        btn.style.cursor = "default";
                     } else {
-                        btn.innerText = '🂠';
+                        if (adminMode) {
+                            btn.innerText = formatCard(card);
+                            btn.style.background = "#e3f2fd";
+                            btn.style.color = "#000";
+                            btn.style.fontSize = "14px";
+                        } else {
+                            btn.innerText = '🂠';
+                        }
+                        btn.title = !mustResolveDraw ? `Try to eliminate ${player.username}'s card #${index + 1} (must match discard)` : (mustResolveDraw ? 'Resolve your drawn card first' : 'Face down');
                     }
-                    btn.title = !mustResolveDraw ? `Try to eliminate ${player.username}'s card #${index + 1} (must match discard)` : (mustResolveDraw ? 'Resolve your drawn card first' : 'Face down');
 
                     // Priority 1: Selecting targets (Abilities)
-                    if (selectingTargets) {
+                    if (card && selectingTargets) {
                          btn.addEventListener('click', (e) => {
                              e.stopPropagation(); // Stop bubbling
                              handleCardClick(player.player_id, index, false);

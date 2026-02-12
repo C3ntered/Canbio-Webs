@@ -161,6 +161,16 @@
         #card-container button:hover {
             background-color: #e0e0e0;
         }
+        .swapped-highlight {
+            animation: pulse-orange 1s infinite;
+            border-color: #ff9800 !important;
+            border-width: 4px !important;
+        }
+        @keyframes pulse-orange {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+        }
         #notifications {
             margin-top: 20px;
             padding: 10px;

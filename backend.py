@@ -51,7 +51,7 @@ class Card(BaseModel):
 class Player(BaseModel):
     player_id: str
     username: str
-    hand: List[Card] = []
+    hand: List[Optional[Card]] = []
     score: int = 0
     is_connected: bool = False
     last_draw_source: Optional[str] = None  # deck or discard
@@ -312,13 +312,14 @@ class GameRoomManager:
                 self.remove_connection(room_id, player_id)
     
     def check_win_condition(self, room_id: str) -> Optional[str]:
-        """Check if any player has won (empty hand). Returns winner player_id or None"""
+        """Check if any player has won (empty hand, all None). Returns winner player_id or None"""
         if room_id not in self.rooms:
             return None
         
         room = self.rooms[room_id]
         for player in room.players:
-            if len(player.hand) == 0:
+            # Check if all cards are None (eliminated)
+            if not any(card for card in player.hand):
                 return player.player_id
         return None
     
@@ -373,13 +374,13 @@ class GameRoomManager:
 
         # Calculate scores
         for player in room.players:
-            player.score = sum(get_card_value(card) for card in player.hand)
+            player.score = sum(get_card_value(card) for card in player.hand if card)
 
         # Determine winner: Lowest score, tie-breaker: fewest cards
         # Sort players by score (asc), then by hand size (asc)
         sorted_players = sorted(
             room.players,
-            key=lambda p: (p.score, len(p.hand))
+            key=lambda p: (p.score, len([c for c in p.hand if c]))
         )
 
         winner = sorted_players[0] if sorted_players else None
@@ -393,8 +394,8 @@ class GameRoomManager:
         """Execute the requested ability if the payload is valid."""
         room_id = room.room_id
 
-        def validate_index(hand: List[Card], idx: int) -> bool:
-            return 0 <= idx < len(hand)
+        def validate_index(hand: List[Optional[Card]], idx: int) -> bool:
+            return 0 <= idx < len(hand) and hand[idx] is not None
 
         if ability == "peek_self":
             index = payload.get("card_index")
@@ -451,6 +452,10 @@ class GameRoomManager:
                 "type": "cards_swapped",
                 "data": {
                     "message": f"{acting_player.username} blind swapped a card with {target.username}.",
+                    "player1_id": acting_player.player_id,
+                    "card1_index": own_index,
+                    "player2_id": target.player_id,
+                    "card2_index": target_index,
                     "room": room.model_dump(mode='json')
                 }
             })
@@ -707,12 +712,12 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     # But it might complicate the UI/state. Let's allow it for now.
                     pass
                 
-                # Check if player has the card
+                # Check if player has the card (and it's not None)
                 card_found = False
                 played_card = None
                 hand_index = None
                 for i, hand_card in enumerate(player.hand):
-                    if hand_card.suit == card.suit and hand_card.rank == card.rank:
+                    if hand_card and hand_card.suit == card.suit and hand_card.rank == card.rank:
                         played_card = hand_card
                         hand_index = i
                         card_found = True
@@ -721,7 +726,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 if not card_found:
                     await websocket.send_json({
                         "type": "error",
-                        "message": "Card not in hand"
+                        "message": "Card not in hand or already eliminated"
                     })
                     continue
 
@@ -769,8 +774,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         }, exclude_player=player_id)
                     continue
 
-                # Card matches - remove from hand and add to discard
-                player.hand.pop(hand_index)
+                # Card matches - remove from hand (set to None) and add to discard
+                player.hand[hand_index] = None
                 room.game_state.discard_pile.append(played_card)
 
                 # Elimination does NOT trigger abilities. "If and only if you draw a card from the deck...".
@@ -944,6 +949,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         await websocket.send_json({"type": "error", "message": "Invalid hand index"})
                         continue
                     
+                    if player.hand[hand_index] is None:
+                        await websocket.send_json({"type": "error", "message": "Cannot swap with an empty slot"})
+                        continue
+
                     discarded_card = player.hand[hand_index]
                     # Execute swap - no match required for swap
                     player.hand[hand_index] = player.pending_drawn_card
@@ -1071,13 +1080,22 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         idx1 = targets["first_card_index"]
                         idx2 = targets["second_card_index"]
                         # Validate indices again just in case
-                        if 0 <= idx1 < len(p1.hand) and 0 <= idx2 < len(p2.hand):
+                        # Also check for None (though user might have swapped empty slots? Rules usually forbid swapping empty slots.
+                        # But if we use None for holes, we probably shouldn't allow selecting holes.
+                        # Let's ensure slots are not None.
+                        if (0 <= idx1 < len(p1.hand) and p1.hand[idx1] is not None and
+                            0 <= idx2 < len(p2.hand) and p2.hand[idx2] is not None):
+
                             p1.hand[idx1], p2.hand[idx2] = p2.hand[idx2], p1.hand[idx1]
                             room = room_manager.get_room(room_id)
                             await room_manager.broadcast_to_room(room_id, {
                                 "type": "cards_swapped",
                                 "data": {
                                     "message": f"{player.username} swapped two cards.",
+                                    "player1_id": p1.player_id,
+                                    "card1_index": idx1,
+                                    "player2_id": p2.player_id,
+                                    "card2_index": idx2,
                                     "room": room.model_dump(mode='json')
                                 }
                             })
@@ -1257,10 +1275,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
                 # Can eliminate anyone's card including your own (e.g. when it's not your turn)
 
-                if target_index < 0 or target_index >= len(target_player.hand):
+                if target_index < 0 or target_index >= len(target_player.hand) or target_player.hand[target_index] is None:
                     await websocket.send_json({
                         "type": "error",
-                        "message": "Invalid card index"
+                        "message": "Invalid card index or empty slot"
                     })
                     continue
 
@@ -1316,14 +1334,31 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                             })
                     continue
 
-                removed_card = target_player.hand.pop(target_index)
+                removed_card = target_player.hand[target_index]
+                target_player.hand[target_index] = None # Create hole
                 room.game_state.discard_pile.append(removed_card)
 
                 msg_extra = ""
                 if target_id != player_id:
                      # Move replacement card
-                     replacement_card = player.hand.pop(replacement_index)
-                     target_player.hand.insert(target_index, replacement_card)
+                     # Wait, if we use None for holes, popping changes indices. We should set to None.
+                     # But rule says: "I give them one of my cards, and that card goes to that bottom left position".
+                     # So target slot gets filled. My slot becomes None (or shifted?).
+                     # User said: "If I get rid of the top right card, there should just be a hole there".
+                     # But for swapping replacement: "I give them one of my cards, and that card goes to that bottom left position".
+                     # This implies target hole is filled immediately.
+                     # But my card leaves a hole in MY hand?
+                     # "If I get rid of the top right card... hole there". This context was elimination without replacement (self elimination or just hole logic).
+                     # Let's assume replacement fills the hole. And the GIVER gets a hole.
+
+                     if player.hand[replacement_index] is None:
+                         await websocket.send_json({"type": "error", "message": "Cannot replace with an empty slot"})
+                         continue
+
+                     replacement_card = player.hand[replacement_index]
+                     player.hand[replacement_index] = None # Giver gets a hole
+                     target_player.hand[target_index] = replacement_card # Target hole filled
+
                      msg_extra = " and gave them a replacement card"
 
                 room = room_manager.get_room(room_id)
@@ -1366,7 +1401,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 card = Card(**card_data)
                 
                 # Check if player has the card
-                if not any(c.suit == card.suit and c.rank == card.rank for c in player.hand):
+                if not any(c and c.suit == card.suit and c.rank == card.rank for c in player.hand):
                     await websocket.send_json({
                         "type": "error",
                         "message": "Card not in hand"
