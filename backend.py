@@ -813,6 +813,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     })
                     continue
                 
+                if player.pending_ability:
+                    await websocket.send_json({
+                        "type": "error",
+                        "message": "You must use or skip your pending ability first"
+                    })
+                    continue
+
                 # If deck is empty, reshuffle discard pile (keeping last card)
                 if not room.game_state.deck:
                     if len(room.game_state.discard_pile) <= 1:
