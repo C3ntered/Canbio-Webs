@@ -83,8 +83,11 @@
         }
         .opponent-cards {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-auto-flow: column;
+            grid-template-rows: repeat(2, 1fr);
             gap: 8px;
+            /* Force card-like dimensions or reasonable widths */
+            justify-content: start; /* Don't stretch across the whole container */
         }
         .opponent-cards button {
             padding: 12px 10px;

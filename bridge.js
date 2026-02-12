@@ -128,7 +128,7 @@ function handleSocketMessage(event) {
                 alert(`Game Over! Winner: ${winnerName}`);
                 notify(`Game Over! Winner: ${winnerName} (Score: ${latestRoomState.players.find(p=>p.player_id === winnerId)?.score})`, 10000);
             }
-            
+
             pendingDrawnCard = null;
             pendingAbility = null;
             selectingTargets = false;
@@ -160,7 +160,7 @@ function handleSocketMessage(event) {
             alert(message.data.message || 'Wrong card! You drew a penalty card.');
             latestRoomState = message.data.room;
             renderBoard(message.data.room, playerContext.playerId);
-            notify(`Penalty: You drew ${formatCard(message.data.card)}`);
+            notify(`Penalty: You drew a face-down penalty card.`);
             break;
         case 'cards_swapped':
             notify(message.data.message);
@@ -209,10 +209,10 @@ function handleSocketMessage(event) {
             } else if (ability === 'look_and_swap' && first && second) {
                 // Reveal the cards visually
                 const revealCard = (pid, idx, c) => {
-                    const selector = pid === playerContext.playerId 
+                    const selector = pid === playerContext.playerId
                         ? `#card-container > button:nth-child(${idx + 1})`
                         : `#opponents-container .opponent-hand:has(.opponent-name:contains('${latestRoomState.players.find(p => p.player_id === pid)?.username}')) .opponent-cards button:nth-child(${idx + 1})`;
-                    
+
                     // Simple logic for finding the button. For opponents, it's tricky with :contains, let's just use index if we can find the player section.
                     let btn = null;
                     if (pid === playerContext.playerId) {
@@ -249,7 +249,7 @@ function handleSocketMessage(event) {
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
                 notify(`You saw: ${formatCard(first.card)} (${p1.username}) and ${formatCard(second.card)} (${p2.username})`);
-                
+
                 renderBoard(latestRoomState, playerContext.playerId);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
@@ -363,28 +363,28 @@ function startAbilitySelection(ability) {
     const nameDisplay = document.getElementById('ability-name-display');
     const desc = document.getElementById('ability-desc');
     const controls = document.getElementById('ability-controls');
-    
+
     if (panel && nameDisplay && desc) {
         panel.style.display = 'block';
         nameDisplay.innerText = ability;
         if (controls) controls.innerHTML = '';
-        
+
         let instructions = "";
         if (ability === 'peek_self') instructions = "Click one of YOUR cards to peek at it.";
         else if (ability === 'peek_other') instructions = "Click one of an OPPONENT'S cards to peek at it.";
         else if (ability === 'blind_swap') instructions = "Click one of YOUR cards, then one of an OPPONENT'S cards to swap them.";
         else if (ability === 'look_and_swap') instructions = "Click ANY two cards to look at them. (Swap optional)";
-        
+
         desc.innerText = instructions;
     }
 }
 
 function handleCardClick(playerId, cardIndex, isOwnCard) {
     if (!selectingTargets) return;
-    
+
     // Add target
     selectedTargets.push({ player_id: playerId, card_index: cardIndex });
-    
+
     // Check if we have enough targets
     if (pendingAbility === 'peek_self') {
         if (!isOwnCard) {
@@ -420,8 +420,8 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
                 selectedTargets = [first]; // Keep first
                 return;
             }
-            sendMessage('use_ability', { 
-                target_player_id: second.player_id, 
+            sendMessage('use_ability', {
+                target_player_id: second.player_id,
                 own_card_index: first.card_index,
                 target_card_index: second.card_index
             });
@@ -454,7 +454,7 @@ function getVisualOrder(totalCards) {
     if (totalCards > 2) indices.push(2);
     if (totalCards > 1) indices.push(1);
     if (totalCards > 3) indices.push(3);
-    
+
     for (let i = 4; i < totalCards; i++) {
         indices.push(i);
     }
@@ -509,7 +509,7 @@ function renderBoard(room, yourPlayerId) {
     if (startGameBtn) {
         const isWaiting = room.status === 'waiting' || room.status === 'WAITING';
         const isFinished = room.status === 'finished' || room.status === 'FINISHED';
-        
+
         if (isWaiting) {
             if (room.players.length >= room.min_players) {
                 startGameBtn.style.display = 'block';
@@ -586,7 +586,7 @@ function renderBoard(room, yourPlayerId) {
             if (pendingDrawnCard) {
                 drawChoicePanel.style.display = 'block';
                 drawnCardDisplay.textContent = formatCard(pendingDrawnCard);
-                
+
                 // If drawn from discard pile, you cannot discard it again
                 if (discardDrawnBtn) {
                      // Check if last draw source was discard
@@ -630,7 +630,7 @@ function renderBoard(room, yourPlayerId) {
                 const nameDisplay = document.getElementById('ability-name-display');
                 const desc = document.getElementById('ability-desc');
                 const controls = document.getElementById('ability-controls');
-                
+
                 if (nameDisplay) nameDisplay.innerText = "Swap Decision";
                 if (desc) desc.innerText = "Do you want to swap the cards you just saw?";
                 if (controls) {
@@ -659,7 +659,7 @@ function renderBoard(room, yourPlayerId) {
             // 4. Cambio hasn't been called yet
             const isMyTurn = room.game_state.current_turn === yourPlayerId;
             const canCall = isMyTurn && !pendingDrawnCard && !pendingAbility && !room.game_state.cambio_called;
-            
+
             callCambioBtn.disabled = !canCall;
             if (room.game_state.cambio_called) {
                 callCambioBtn.title = "Cambio has already been called";
@@ -714,18 +714,22 @@ function renderBoard(room, yourPlayerId) {
 
             if (me) {
                 const isAwaitingDrawChoice = !!pendingDrawnCard;
-                
+
                 // Use visual order for rendering
                 const visualOrder = getVisualOrder(me.hand.length);
-                
+
                 visualOrder.forEach(index => {
                     const card = me.hand[index];
                     const btn = document.createElement('button');
                     // 2x2 matrix: indices 0,1 = top row; 2,3 = bottom row. Bottom two shown for 5 seconds.
                     const isBottomCard = index === 2 || index === 3;
-                    const isVisible = isViewingPhase && isBottomCard;
+                    const isVisible = (isViewingPhase && isBottomCard) || adminMode;
                     btn.innerText = isVisible ? formatCard(card) : "🂠";
                     btn.title = isViewingPhase ? (isBottomCard ? 'Memorize this card!' : 'Face down') : (isAwaitingDrawChoice ? `Click to swap with drawn card` : `Card #${index + 1}`);
+                    if (adminMode) {
+                        btn.style.background = "#e3f2fd";
+                        btn.style.color = "#000";
+                    }
                     if (!isViewingPhase) {
                         // Priority 1: Selecting targets (Abilities)
                         if (selectingTargets) {
@@ -736,7 +740,7 @@ function renderBoard(room, yourPlayerId) {
                             btn.style.borderColor = "#00acc1";
                             btn.style.cursor = "pointer";
                             btn.innerText = "🎯";
-                        } 
+                        }
                         // Priority 2: Swapping drawn card (Draw phase)
                         else if (isAwaitingDrawChoice) {
                             btn.addEventListener('click', () => resolveDraw('swap', index));
@@ -778,10 +782,10 @@ function renderBoard(room, yourPlayerId) {
                 section.appendChild(nameEl);
                 const cardsDiv = document.createElement('div');
                 cardsDiv.className = 'opponent-cards';
-                
+
                 // Use visual order
                 const visualOrder = getVisualOrder(player.hand.length);
-                
+
                 visualOrder.forEach(index => {
                     const card = player.hand[index];
                     const btn = document.createElement('button');
@@ -794,7 +798,7 @@ function renderBoard(room, yourPlayerId) {
                         btn.innerText = '🂠';
                     }
                     btn.title = !mustResolveDraw ? `Try to eliminate ${player.username}'s card #${index + 1} (must match discard)` : (mustResolveDraw ? 'Resolve your drawn card first' : 'Face down');
-                    
+
                     // Priority 1: Selecting targets (Abilities)
                     if (selectingTargets) {
                          btn.addEventListener('click', (e) => {
@@ -804,7 +808,7 @@ function renderBoard(room, yourPlayerId) {
                          btn.style.borderColor = "#00acc1";
                          btn.style.cursor = "pointer";
                          btn.innerText = "🎯";
-                    } 
+                    }
                     // Priority 2: Elimination (Normal phase, if no draw pending)
                     else if (!mustResolveDraw) {
                         if (eliminationTarget && eliminationTarget.pid === player.player_id && eliminationTarget.idx === index) {
@@ -877,11 +881,13 @@ function copyRoomId() {
         return;
     }
 
-    // Copy to clipboard
-    navigator.clipboard.writeText(roomId).then(() => {
+    const showCopiedFeedback = () => {
         const button = document.getElementById('copy-room-id');
         if (button) {
-            const originalText = button.innerText;
+            const originalText = button.getAttribute('data-original-text') || button.innerText;
+            if (!button.getAttribute('data-original-text')) {
+                button.setAttribute('data-original-text', originalText);
+            }
             button.innerText = 'Copied!';
             button.classList.add('copied');
             setTimeout(() => {
@@ -890,20 +896,42 @@ function copyRoomId() {
             }, 2000);
         }
         notify(`Room ID "${roomId}" copied to clipboard!`);
-    }).catch(err => {
-        // Fallback for older browsers
-        const textarea = document.createElement('textarea');
-        textarea.value = roomId;
-        document.body.appendChild(textarea);
-        textarea.select();
-        try {
-            document.execCommand('copy');
-            notify(`Room ID "${roomId}" copied to clipboard!`);
-        } catch (e) {
-            alert(`Room ID: ${roomId}\n\n(Please copy this manually)`);
+    };
+
+    // Try modern Clipboard API first
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(roomId).then(showCopiedFeedback).catch(err => {
+            console.warn('Clipboard API failed, trying fallback', err);
+            fallbackCopy(roomId, showCopiedFeedback);
+        });
+    } else {
+        fallbackCopy(roomId, showCopiedFeedback);
+    }
+}
+
+function fallbackCopy(text, onSuccess) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    // Move offscreen but keep visible to ensure copy works
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+            onSuccess();
+        } else {
+            prompt("Copy this Room ID:", text);
         }
-        document.body.removeChild(textarea);
-    });
+    } catch (err) {
+        prompt("Copy this Room ID:", text);
+    }
+
+    document.body.removeChild(textarea);
 }
 
 async function handleJoin() {
