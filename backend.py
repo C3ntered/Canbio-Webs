@@ -7,7 +7,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Dict, Optional, Set
 from datetime import datetime
 import uuid
@@ -50,7 +50,7 @@ class Card(BaseModel):
 
 class Player(BaseModel):
     player_id: str
-    username: str
+    username: str = Field(..., min_length=1, max_length=32)
     hand: List[Card] = []
     score: int = 0
     is_connected: bool = False
@@ -85,12 +85,12 @@ class Room(BaseModel):
     num_decks: int = 1  # Number of decks to use (auto-calculated if >5 players)
 
 class CreateRoomRequest(BaseModel):
-    username: str
+    username: str = Field(..., min_length=1, max_length=32)
     max_players: int = 4
     num_decks: Optional[int] = None  # If None, auto-calculate based on player count (>5 = 2 decks)
 
 class JoinRoomRequest(BaseModel):
-    username: str
+    username: str = Field(..., min_length=1, max_length=32)
 
 class WebSocketMessage(BaseModel):
     type: str  # join, play_card, draw_card, reveal_card, game_state_request
