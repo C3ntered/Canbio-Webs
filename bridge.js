@@ -203,10 +203,6 @@ function handleSocketMessage(event) {
             } else if (ability === 'look_and_swap' && first && second) {
                 // Reveal the cards visually
                 const revealCard = (pid, idx, c) => {
-                    const selector = pid === playerContext.playerId
-                        ? `#card-container > button:nth-child(${idx + 1})`
-                        : `#opponents-container .opponent-hand:has(.opponent-name:contains('${latestRoomState.players.find(p => p.player_id === pid)?.username}')) .opponent-cards button:nth-child(${idx + 1})`;
-
                     // Simple logic for finding the button. For opponents, it's tricky with :contains, let's just use index if we can find the player section.
                     let btn = null;
                     if (pid === playerContext.playerId) {
