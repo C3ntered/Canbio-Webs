@@ -135,6 +135,11 @@ function handleSocketMessage(event) {
             renderBoard(message.data.room, playerContext.playerId);
             notify(`Penalty: You drew ${formatCard(message.data.card)}`);
             break;
+        case 'cards_swapped':
+            notify(message.data.message);
+            latestRoomState = message.data.room;
+            renderBoard(message.data.room, playerContext.playerId);
+            break;
         case 'card_drawn':
             pendingDrawnCard = message.data.card;
             latestRoomState = message.data.room;
@@ -178,8 +183,12 @@ function handleSocketMessage(event) {
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
                 const msg = `Card 1 (${p1.username}): ${formatCard(first.card)}\nCard 2 (${p2.username}): ${formatCard(second.card)}`;
-                alert("Memorize these cards:\n" + msg);
-                notify(msg.replace('\n', ', '), 10000);
+
+                // Use timeout to allow UI updates if any before confirm
+                setTimeout(() => {
+                    const doSwap = confirm(msg + "\n\nDo you want to swap them?");
+                    sendMessage('resolve_swap_decision', { swap: doSwap });
+                }, 100);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
             }
@@ -337,14 +346,10 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
         if (selectedTargets.length < 2) {
             notify(`Selected ${selectedTargets.length}/2 cards.`);
         } else {
-            // Ask for swap immediately? Or just look?
-            // "Look and swap (look at any two cards and decide whether you want to swap them.)"
-            // For now, prompt user:
-            const doSwap = confirm("Do you want to swap these two cards after looking?");
+            // Just send the targets. The decision comes later.
             sendMessage('use_ability', {
                 first_target: selectedTargets[0],
-                second_target: selectedTargets[1],
-                swap: doSwap
+                second_target: selectedTargets[1]
             });
             selectingTargets = false;
             pendingAbility = null;
@@ -476,6 +481,28 @@ function renderBoard(room, yourPlayerId) {
         const abilityPanel = document.getElementById('ability-panel');
         if (abilityPanel) {
             abilityPanel.style.display = pendingAbility ? 'block' : 'none';
+        }
+
+        const callCambioBtn = document.getElementById('call-cambio-btn');
+        if (callCambioBtn) {
+            // Can only call if:
+            // 1. It is my turn
+            // 2. I haven't drawn a card yet (pendingDrawnCard is null)
+            // 3. I don't have a pending ability
+            // 4. Cambio hasn't been called yet
+            const isMyTurn = room.game_state.current_turn === yourPlayerId;
+            const canCall = isMyTurn && !pendingDrawnCard && !pendingAbility && !room.game_state.cambio_called;
+
+            callCambioBtn.disabled = !canCall;
+            if (room.game_state.cambio_called) {
+                callCambioBtn.title = "Cambio has already been called";
+            } else if (!isMyTurn) {
+                callCambioBtn.title = "Wait for your turn";
+            } else if (pendingDrawnCard || pendingAbility) {
+                callCambioBtn.title = "Cannot call Cambio after drawing or during ability";
+            } else {
+                callCambioBtn.title = "Call Cambio to end your turn and start final round";
+            }
         }
 
         const topCardContainer = document.getElementById('top-card');
