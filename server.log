@@ -1,51 +1,27 @@
-INFO:     Started server process [31666]
+INFO:     Started server process [35830]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:54364 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:54364 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:44424 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:44424 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36382 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:36382 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49836 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49836 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49836 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 49838) - "WebSocket /ws/99b63a43" [accepted]
+INFO:     127.0.0.1:52008 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52020 - "POST /api/rooms/b14b554a/join HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52028 - "POST /api/rooms/b14b554a/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52036 - "GET /api/rooms/b14b554a HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52046 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52058 - "POST /api/rooms/b1ea719d/join HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52062 - "POST /api/rooms/b1ea719d/start HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52066 - "GET /api/rooms/b1ea719d HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52080 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52088 - "GET /api/rooms/a83d46c4 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52092 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52102 - "POST /api/rooms/1815f6e3/join HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52114 - "POST /api/rooms/1815f6e3/start HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 52118) - "WebSocket /ws/1815f6e3" [accepted]
 INFO:     connection open
-INFO:     127.0.0.1:49842 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49842 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49842 - "POST /api/rooms/99b63a43/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 49846) - "WebSocket /ws/99b63a43" [accepted]
-INFO:     connection open
-INFO:     connection closed
-INFO:     connection closed
-Error sending message to player 6545a675: received 1001 (going away); then sent 1001 (going away)
-INFO:     127.0.0.1:49038 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49038 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49038 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 49046) - "WebSocket /ws/782c4969" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:49052 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49052 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:49052 - "POST /api/rooms/782c4969/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 49064) - "WebSocket /ws/782c4969" [accepted]
-INFO:     connection open
-INFO:     connection closed
-INFO:     connection closed
-INFO:     127.0.0.1:50942 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50942 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50942 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 50958) - "WebSocket /ws/1a67df2a" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:50970 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50970 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50970 - "POST /api/rooms/1a67df2a/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 50974) - "WebSocket /ws/1a67df2a" [accepted]
+INFO:     ('127.0.0.1', 52126) - "WebSocket /ws/1815f6e3" [accepted]
 INFO:     connection open
 INFO:     connection closed
 INFO:     connection closed
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [31666]
+INFO:     Finished server process [35830]

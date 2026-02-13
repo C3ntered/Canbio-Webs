@@ -84,12 +84,14 @@ class Room(BaseModel):
     min_players: int = 2
     num_decks: int = 1  # Number of decks to use (auto-calculated if >5 players)
     initial_hand_size: int = 4  # Number of cards to deal per player
+    red_king_variant: bool = False # If True, Red Kings are -2
 
 class CreateRoomRequest(BaseModel):
     username: str
     max_players: int = 4
     num_decks: Optional[int] = None  # If None, auto-calculate based on player count (>5 = 2 decks)
     initial_hand_size: int = 4  # 4, 6, or 8
+    red_king_variant: bool = False
 
 class JoinRoomRequest(BaseModel):
     username: str
@@ -98,16 +100,16 @@ class WebSocketMessage(BaseModel):
     type: str  # join, play_card, draw_card, reveal_card, game_state_request
     data: Optional[Dict] = None
 
-def get_card_value(card: Card) -> int:
+def get_card_value(card: Card, red_king_variant: bool = False) -> int:
     """Return the scoring value for a card according to Cambio rules."""
     if card.rank == "Ace":
         return 1
     if card.rank in [str(n) for n in range(2, 11)]:
         return int(card.rank)
     if card.rank in ["Jack", "Queen", "King"]:
-        # Red kings count as -1, black kings count as 10
+        # Red kings count as -1 (or -2 if variant active), black kings count as 10
         if card.rank == "King" and card.suit in {"Hearts", "Diamonds"}:
-            return -1
+            return -2 if red_king_variant else -1
         return 10
     if card.rank == "Joker":
         return 0
@@ -134,7 +136,7 @@ class GameRoomManager:
         self.rooms: Dict[str, Room] = {}
         self.room_connections: Dict[str, Dict[str, WebSocket]] = {}  # room_id -> {player_id -> websocket}
     
-    def create_room(self, username: str, max_players: int = 8, num_decks: Optional[int] = None, initial_hand_size: int = 4) -> Room:
+    def create_room(self, username: str, max_players: int = 8, num_decks: Optional[int] = None, initial_hand_size: int = 4, red_king_variant: bool = False) -> Room:
         """Create a new game room"""
         room_id = str(uuid.uuid4())[:8]
         player_id = str(uuid.uuid4())[:8]
@@ -157,7 +159,8 @@ class GameRoomManager:
             created_at=datetime.now(),
             max_players=max_players,
             num_decks=num_decks,
-            initial_hand_size=initial_hand_size
+            initial_hand_size=initial_hand_size,
+            red_king_variant=red_king_variant
         )
         
         self.rooms[room_id] = room
@@ -203,9 +206,16 @@ class GameRoomManager:
         room.game_state.game_phase = "dealing"
         
         # Auto-adjust number of decks based on actual player count if needed
-        if len(room.players) > 5 and room.num_decks == 1:
+        # Logic: If cards drawn (players * hand_size) > half a deck (26), add another deck.
+        total_drawn = len(room.players) * room.initial_hand_size
+        if total_drawn > 26 and room.num_decks == 1:
             room.num_decks = 2
         
+        # Safety Check: If user forced 1 deck but we physically need more (e.g. 50 cards needed), force 2.
+        # Standard deck = 54 cards.
+        if total_drawn > 48 and room.num_decks == 1:
+             room.num_decks = 2
+
         # Create and shuffle deck(s)
         deck = self.create_deck(room.num_decks)
         random.shuffle(deck)
@@ -377,7 +387,7 @@ class GameRoomManager:
 
         # Calculate scores
         for player in room.players:
-            player.score = sum(get_card_value(card) for card in player.hand if card)
+            player.score = sum(get_card_value(card, room.red_king_variant) for card in player.hand if card)
 
         # Determine winner: Lowest score, tie-breaker: fewest cards
         # Sort players by score (asc), then by hand size (asc)
@@ -439,26 +449,57 @@ class GameRoomManager:
             return True
 
         if ability == "blind_swap":
-            target_id = payload.get("target_player_id")
-            own_index = payload.get("own_card_index")
-            target_index = payload.get("target_card_index")
-            if target_id is None or own_index is None or target_index is None:
+            # New Universal Logic: Can swap ANY two cards (source and target)
+            # The payload should now contain source/target player/card indices.
+            # For backward compatibility or simplicity, we check if new format is used.
+            # If "own_card_index" is present, it's the old format (Self <-> Other).
+            # But the user specifically requested "any two cards".
+            # Let's support a generalized format: "source" and "target" dicts.
+
+            source_pid = payload.get("source_player_id")
+            source_idx = payload.get("source_card_index")
+            target_pid = payload.get("target_player_id")
+            target_idx = payload.get("target_card_index")
+
+            # Fallback for old frontend logic if not updated yet (though we will update frontend)
+            if source_pid is None:
+                source_pid = acting_player.player_id
+                source_idx = payload.get("own_card_index")
+
+            if source_pid is None or source_idx is None or target_pid is None or target_idx is None:
                 return False
-            target = next((p for p in room.players if p.player_id == target_id), None)
-            if not target:
+
+            # Immunity Check: Cannot swap with a player who called Cambio
+            if room.game_state.cambio_caller:
+                if room.game_state.cambio_caller == source_pid or room.game_state.cambio_caller == target_pid:
+                    # Notify only the acting player? Or return false?
+                    # Ideally notify.
+                    await self.send_to_player(room_id, acting_player.player_id, {
+                        "type": "error",
+                        "message": "Cannot swap with a player who called Cambio!"
+                    })
+                    return False
+
+            source_p = next((p for p in room.players if p.player_id == source_pid), None)
+            target_p = next((p for p in room.players if p.player_id == target_pid), None)
+
+            if not source_p or not target_p:
                 return False
-            if not validate_index(acting_player.hand, own_index) or not validate_index(target.hand, target_index):
+
+            if not validate_index(source_p.hand, source_idx) or not validate_index(target_p.hand, target_idx):
                 return False
-            acting_player.hand[own_index], target.hand[target_index] = target.hand[target_index], acting_player.hand[own_index]
+
+            # Execute Swap
+            source_p.hand[source_idx], target_p.hand[target_idx] = target_p.hand[target_idx], source_p.hand[source_idx]
 
             await self.broadcast_to_room(room_id, {
                 "type": "cards_swapped",
                 "data": {
-                    "message": f"{acting_player.username} blind swapped their card #{own_index + 1} with {target.username}'s card #{target_index + 1}.",
-                    "player1_id": acting_player.player_id,
-                    "card1_index": own_index,
-                    "player2_id": target.player_id,
-                    "card2_index": target_index,
+                    "message": f"{acting_player.username} blind swapped {source_p.username}'s card #{source_idx + 1} with {target_p.username}'s card #{target_idx + 1}.",
+                    "player1_id": source_p.player_id,
+                    "card1_index": source_idx,
+                    "player2_id": target_p.player_id,
+                    "card2_index": target_idx,
                     "room": room.model_dump(mode='json')
                 }
             })
@@ -481,6 +522,15 @@ class GameRoomManager:
             second_player, second_idx = resolve_target(second)
             if not first_player or not second_player:
                 return False
+
+            # Immunity Check
+            if room.game_state.cambio_caller:
+                if room.game_state.cambio_caller == first_player.player_id or room.game_state.cambio_caller == second_player.player_id:
+                    await self.send_to_player(room_id, acting_player.player_id, {
+                        "type": "error",
+                        "message": "Cannot swap with a player who called Cambio!"
+                    })
+                    return False
 
             first_card = first_player.hand[first_idx]
             second_card = second_player.hand[second_idx]
@@ -543,7 +593,8 @@ async def create_room(request: CreateRoomRequest):
         request.username,
         request.max_players,
         request.num_decks,
-        request.initial_hand_size
+        request.initial_hand_size,
+        request.red_king_variant
     )
     return room
 

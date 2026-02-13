@@ -459,6 +459,19 @@
             <option value="8">8 Cards</option>
         </select>
 
+        <label for="num-decks-select" style="display:block; margin-top:10px; font-size:14px; color:#666;">Number of Decks (for new rooms):</label>
+        <select id="num-decks-select">
+            <option value="1" selected>1 Deck (Standard)</option>
+            <option value="2">2 Decks (For >4 Players)</option>
+        </select>
+
+        <div style="margin-top: 10px; text-align: left; padding: 0 10px;">
+            <label style="font-size: 14px; color: #666; cursor: pointer; display: flex; align-items: center;">
+                <input type="checkbox" id="red-king-variant" style="width: auto; margin-right: 8px;">
+                Red King = -2 (Variant)
+            </label>
+        </div>
+
         <button onclick="handleJoin()" style="margin-top:15px;">Join Game</button>
         <p id="status"></p>
     </div>
@@ -472,7 +485,7 @@
             <button id="copy-room-id" onclick="copyRoomId()">Copy Room ID</button>
             <div style="margin-left: 20px;">
                 <label style="color: white; cursor: pointer;">
-                   <!-- <input type="checkbox" id="admin-mode-toggle" onchange="toggleAdminMode()"> Admin Mode -->
+                    <input type="checkbox" id="admin-mode-toggle" onchange="toggleAdminMode()"> Admin Mode
                 </label>
             </div>
         </div>

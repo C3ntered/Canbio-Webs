@@ -43,10 +43,15 @@ async function joinGame(username, roomId = null) {
         payload = { username };
     } else {
         const handSize = document.getElementById('hand-size-select')?.value || 4;
+        const numDecks = document.getElementById('num-decks-select')?.value || 1;
+        const redKingVariant = document.getElementById('red-king-variant')?.checked || false;
+
         payload = {
             username,
-            max_players: 4,
-            initial_hand_size: parseInt(handSize)
+            max_players: 8, // Increased max players default
+            initial_hand_size: parseInt(handSize),
+            num_decks: parseInt(numDecks),
+            red_king_variant: redKingVariant
         };
     }
 
@@ -537,7 +542,7 @@ function startAbilitySelection(ability) {
         let instructions = "";
         if (ability === 'peek_self') instructions = "Click one of YOUR cards to peek at it.";
         else if (ability === 'peek_other') instructions = "Click one of an OPPONENT'S cards to peek at it.";
-        else if (ability === 'blind_swap') instructions = "Click one of YOUR cards, then one of an OPPONENT'S cards to swap them.";
+        else if (ability === 'blind_swap') instructions = "Click ANY two cards to swap them.";
         else if (ability === 'look_and_swap') instructions = "Click ANY two cards to look at them. (Swap optional)";
 
         desc.innerText = instructions;
@@ -571,23 +576,25 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
         pendingAbility = null;
     } else if (pendingAbility === 'blind_swap') {
         if (selectedTargets.length === 1) {
-             if (!isOwnCard) {
-                 alert("First select one of YOUR cards.");
-                 selectedTargets = [];
-             } else {
-                 notify("Select an opponent's card to swap with.");
-             }
+             notify("Select a second card to swap with.");
         } else if (selectedTargets.length === 2) {
             const first = selectedTargets[0];
             const second = selectedTargets[1];
-            if (first.player_id === second.player_id) {
-                alert("You must swap with an opponent.");
-                selectedTargets = [first]; // Keep first
-                return;
+
+            // Immunity Check: Cannot target a player who called Cambio
+            if (latestRoomState.game_state.cambio_caller) {
+                const caller = latestRoomState.game_state.cambio_caller;
+                if (first.player_id === caller || second.player_id === caller) {
+                    alert("One of the targets has called Cambio and is immune!");
+                    selectedTargets = [];
+                    return;
+                }
             }
+
             sendMessage('use_ability', {
+                source_player_id: first.player_id,
+                source_card_index: first.card_index,
                 target_player_id: second.player_id,
-                own_card_index: first.card_index,
                 target_card_index: second.card_index
             });
             selectingTargets = false;
@@ -1154,7 +1161,7 @@ function updateStatus(status) {
     }
 }
 
-/*function toggleAdminMode() {
+function toggleAdminMode() {
     const checkbox = document.getElementById('admin-mode-toggle');
     if (checkbox) {
         adminMode = checkbox.checked;
@@ -1162,7 +1169,7 @@ function updateStatus(status) {
             renderBoard(latestRoomState, playerContext.playerId);
         }
     }
-}*/
+}
 
 function copyRoomId() {
     const roomId = playerContext.roomId;
@@ -1249,4 +1256,4 @@ window.copyRoomId = copyRoomId;
 window.startGame = startGame;
 window.playAgain = playAgain;
 window.skipAbility = skipAbility;
-//window.toggleAdminMode = toggleAdminMode;
+window.toggleAdminMode = toggleAdminMode;
