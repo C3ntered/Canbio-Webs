@@ -1,101 +1,51 @@
-INFO:     Started server process [23960]
+INFO:     Started server process [31666]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:34496 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34496 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:34496 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 34512) - "WebSocket /ws/ad85c99b" [accepted]
+INFO:     127.0.0.1:54364 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54364 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44424 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44424 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36382 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36382 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49836 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49836 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49836 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49838) - "WebSocket /ws/99b63a43" [accepted]
 INFO:     connection open
-INFO:     127.0.0.1:34496 - "POST /api/rooms/ad85c99b/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 34518) - "WebSocket /ws/ad85c99b" [accepted]
-INFO:     connection open
-INFO:     connection closed
-INFO:     connection closed
-Error sending message to player e269fedc: received 1001 (going away); then sent 1001 (going away)
-INFO:     127.0.0.1:43226 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43226 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43226 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 43240) - "WebSocket /ws/a22e09dd" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:43226 - "POST /api/rooms/a22e09dd/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 43246) - "WebSocket /ws/a22e09dd" [accepted]
-INFO:     connection open
-INFO:     connection closed
-ERROR:    Exception in ASGI application
-Traceback (most recent call last):
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py", line 247, in run_asgi
-    result = await self.app(self.scope, self.asgi_receive, self.asgi_send)
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/uvicorn/middleware/proxy_headers.py", line 84, in __call__
-    return await self.app(scope, receive, send)
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/fastapi/applications.py", line 1106, in __call__
-    await super().__call__(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/applications.py", line 122, in __call__
-    await self.middleware_stack(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/middleware/errors.py", line 149, in __call__
-    await self.app(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/middleware/cors.py", line 75, in __call__
-    await self.app(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 79, in __call__
-    raise exc
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 68, in __call__
-    await self.app(scope, receive, sender)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 20, in __call__
-    raise e
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 17, in __call__
-    await self.app(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/routing.py", line 718, in __call__
-    await route.handle(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/routing.py", line 341, in handle
-    await self.app(scope, receive, send)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/starlette/routing.py", line 82, in app
-    await func(session)
-  File "/home/jules/.pyenv/versions/3.12.12/lib/python3.12/site-packages/fastapi/routing.py", line 325, in app
-    await dependant.call(**values)
-  File "/app/backend.py", line 1512, in websocket_endpoint
-    await room_manager.broadcast_to_room(room_id, {
-  File "/app/backend.py", line 292, in broadcast_to_room
-    for player_id, websocket in self.room_connections[room_id].items():
-                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-RuntimeError: dictionary changed size during iteration
-INFO:     connection closed
-Error sending message to player d7b68a43: received 1001 (going away); then sent 1001 (going away)
-INFO:     127.0.0.1:46680 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46680 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46680 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 46690) - "WebSocket /ws/c1d8e22a" [accepted]
-INFO:     connection open
-INFO:     127.0.0.1:46680 - "POST /api/rooms/c1d8e22a/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 46698) - "WebSocket /ws/c1d8e22a" [accepted]
+INFO:     127.0.0.1:49842 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49842 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49842 - "POST /api/rooms/99b63a43/join HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49846) - "WebSocket /ws/99b63a43" [accepted]
 INFO:     connection open
 INFO:     connection closed
 INFO:     connection closed
-INFO:     127.0.0.1:46680 - "POST /api/rooms HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 46704) - "WebSocket /ws/0ba484cd" [accepted]
+Error sending message to player 6545a675: received 1001 (going away); then sent 1001 (going away)
+INFO:     127.0.0.1:49038 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49038 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49038 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49046) - "WebSocket /ws/782c4969" [accepted]
 INFO:     connection open
-INFO:     127.0.0.1:46680 - "POST /api/rooms/0ba484cd/join HTTP/1.1" 200 OK
-INFO:     ('127.0.0.1', 46720) - "WebSocket /ws/0ba484cd" [accepted]
+INFO:     127.0.0.1:49052 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49052 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49052 - "POST /api/rooms/782c4969/join HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 49064) - "WebSocket /ws/782c4969" [accepted]
 INFO:     connection open
 INFO:     connection closed
 INFO:     connection closed
-INFO:     127.0.0.1:57050 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:57050 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:40000 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:38278 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:33290 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:33290 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:37276 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:34192 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:48142 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48142 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50426 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:50440 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:46630 - "GET /bridge.js HTTP/1.1" 304 Not Modified
-INFO:     127.0.0.1:52278 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52278 - "GET /bridge.js HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35194 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:35194 - "GET /bridge.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50942 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50942 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50942 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 50958) - "WebSocket /ws/1a67df2a" [accepted]
+INFO:     connection open
 INFO:     127.0.0.1:50970 - "GET / HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50970 - "GET /bridge.js HTTP/1.1" 304 Not Modified
+INFO:     127.0.0.1:50970 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50970 - "POST /api/rooms/1a67df2a/join HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 50974) - "WebSocket /ws/1a67df2a" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [31666]

@@ -129,15 +129,69 @@ function handleSocketMessage(event) {
             if (message.data.player_id !== playerContext.playerId) {
                 notify(message.data.message || 'A player played the wrong card and drew a penalty!');
             }
+            latestRoomState = message.data.room;
+            renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
+            break;
         case 'deck_reshuffled':
         case 'cambio_called':
+             notify(message.data.message);
+             latestRoomState = message.data.room;
+             renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
+             break;
         case 'game_ended':
-            // Show winner only if we have a winner
-            if (message.data.winner_id) {
+            // Show Game Over Modal
+            if (message.data.room) {
+                latestRoomState = message.data.room;
+                const room = message.data.room;
                 const winnerId = message.data.winner_id;
                 const winnerName = message.data.winner_username;
-                alert(`Game Over! Winner: ${winnerName}`);
-                notify(`Game Over! Winner: ${winnerName} (Score: ${latestRoomState.players.find(p=>p.player_id === winnerId)?.score})`, 10000);
+
+                const modal = document.getElementById('game-over-modal');
+                const resultsDiv = document.getElementById('game-over-results');
+                if (modal && resultsDiv) {
+                    modal.style.display = 'flex';
+
+                    let html = `<p style="font-size:18px;">Winner: <strong>${winnerName}</strong></p>`;
+                    html += `<table class="score-table">
+                        <thead>
+                            <tr>
+                                <th>Player</th>
+                                <th>Score</th>
+                                <th>Cards</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                    // Sort players by score
+                    const sortedPlayers = [...room.players].sort((a, b) => a.score - b.score);
+
+                    sortedPlayers.forEach(p => {
+                        const isWinner = p.player_id === winnerId;
+                        const rowClass = isWinner ? 'winner-row' : '';
+
+                        // Show cards in hand
+                        let cardsHtml = '<div style="display:flex; gap:5px; flex-wrap:wrap;">';
+                        p.hand.forEach(c => {
+                             if (c) {
+                                 const color = getCardColor(c);
+                                 const symbol = getSuitSymbol(c.suit);
+                                 cardsHtml += `<span style="color:${color}; border:1px solid #ccc; padding:2px 4px; border-radius:4px; background:white;">${c.rank}${symbol}</span>`;
+                             } else {
+                                 cardsHtml += `<span style="border:1px dashed #ccc; padding:2px 4px; border-radius:4px;">❌</span>`;
+                             }
+                        });
+                        cardsHtml += '</div>';
+
+                        html += `<tr class="${rowClass}">
+                            <td>${p.username}${p.player_id === playerContext.playerId ? ' (You)' : ''}</td>
+                            <td>${p.score}</td>
+                            <td>${cardsHtml}</td>
+                        </tr>`;
+                    });
+
+                    html += `</tbody></table>`;
+                    resultsDiv.innerHTML = html;
+                }
             }
 
             pendingDrawnCard = null;
@@ -146,12 +200,16 @@ function handleSocketMessage(event) {
             selectedTargets = [];
             pendingSwapDecision = false;
             eliminationTarget = null;
-            latestRoomState = message.data.room;
             renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
             break;
-        case 'game_reset':
+        case 'game_reset': {
             notify(message.data.message);
             latestRoomState = message.data.room;
+
+            // Hide modal
+            const modal = document.getElementById('game-over-modal');
+            if (modal) modal.style.display = 'none';
+
             renderBoard(message.data.room, playerContext.playerId);
 
             // Highlight swapped cards
@@ -200,6 +258,7 @@ function handleSocketMessage(event) {
                 highlight(player2_id, card2_index);
             }
             break;
+        }
         case 'game_started':
         case 'round_started':
         case 'turn_ended':
@@ -226,7 +285,7 @@ function handleSocketMessage(event) {
             renderBoard(message.data.room, playerContext.playerId);
 
             // Highlight swapped cards
-            const { player1_id: player1_id_data, card1_index: card1_index_data, player2_id: player2_id_data, card2_index: card2_index_data } = message.data;
+            const { player1_id, card1_index, player2_id, card2_index } = message.data;
 
             const highlight = (pid, idx) => {
                  let btn = null;
