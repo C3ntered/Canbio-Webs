@@ -1154,7 +1154,7 @@ function updateStatus(status) {
     }
 }
 
-function toggleAdminMode() {
+/*function toggleAdminMode() {
     const checkbox = document.getElementById('admin-mode-toggle');
     if (checkbox) {
         adminMode = checkbox.checked;
@@ -1162,7 +1162,7 @@ function toggleAdminMode() {
             renderBoard(latestRoomState, playerContext.playerId);
         }
     }
-}
+}*/
 
 function copyRoomId() {
     const roomId = playerContext.roomId;
@@ -1249,4 +1249,4 @@ window.copyRoomId = copyRoomId;
 window.startGame = startGame;
 window.playAgain = playAgain;
 window.skipAbility = skipAbility;
-window.toggleAdminMode = toggleAdminMode;
+//window.toggleAdminMode = toggleAdminMode;
