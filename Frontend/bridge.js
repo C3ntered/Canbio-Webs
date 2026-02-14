@@ -1,3 +1,9 @@
+const GAME_STATUS = {
+    WAITING: 'waiting',
+    PLAYING: 'playing',
+    FINISHED: 'finished'
+};
+
 // Auto-detect API base URL from current page location
 // Works when HTML is served via HTTP (recommended) or falls back to localhost for file://
 // Auto-detect API base URL from current page location
@@ -723,8 +729,8 @@ function renderBoard(room, yourPlayerId) {
     // Show/hide Start Game button based on game status
     const startGameBtn = document.getElementById('start-game-btn');
     if (startGameBtn) {
-        const isWaiting = room.status === 'waiting' || room.status === 'WAITING';
-        const isFinished = room.status === 'finished' || room.status === 'FINISHED';
+        const isWaiting = room.status?.toLowerCase() === GAME_STATUS.WAITING;
+        const isFinished = room.status?.toLowerCase() === GAME_STATUS.FINISHED;
         
         if (isWaiting) {
             if (room.players.length >= room.min_players) {
@@ -753,7 +759,7 @@ function renderBoard(room, yourPlayerId) {
 
     const turnIndicator = document.getElementById('turn-indicator');
     if (turnIndicator) {
-        const isWaiting = room.status === 'waiting' || room.status === 'WAITING';
+        const isWaiting = room.status?.toLowerCase() === GAME_STATUS.WAITING;
         const isViewingPhase = room.game_state?.viewing_phase;
         if (isWaiting) {
             turnIndicator.innerText = `Waiting for players to join... (${room.players.length}/${room.max_players})`;
@@ -780,7 +786,7 @@ function renderBoard(room, yourPlayerId) {
     const myHandContainer = document.getElementById('my-hand');
     const opponentsHandsContainer = document.getElementById('opponents-hands');
     const actionButtons = document.querySelector('.action-buttons');
-    const isPlaying = room.status === 'playing' || room.status === 'PLAYING';
+    const isPlaying = room.status?.toLowerCase() === GAME_STATUS.PLAYING;
     const isViewingPhase = room.game_state?.viewing_phase;
     
     // Hide countdown when not in viewing phase
