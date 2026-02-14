@@ -14,6 +14,7 @@ import uuid
 import random
 import json
 import os
+import asyncio
 from enum import Enum
 
 # Initialize FastAPI app
@@ -158,8 +159,8 @@ class GameRoomManager:
     
     def create_room(self, username: str, max_players: int = 8, num_decks: Optional[int] = None, initial_hand_size: int = 4, red_king_variant: bool = False) -> Room:
         """Create a new game room"""
-        room_id = str(uuid.uuid4())
-        player_id = str(uuid.uuid4())
+        room_id = str(uuid.uuid4())[:8]
+        player_id = str(uuid.uuid4())[:8]
         
         # Auto-calculate number of decks if not specified: 2 decks if max_players > 5
         if num_decks is None:
@@ -201,7 +202,7 @@ class GameRoomManager:
         if len(room.players) >= room.max_players:
             raise HTTPException(status_code=400, detail="Room is full")
         
-        player_id = str(uuid.uuid4())
+        player_id = str(uuid.uuid4())[:8]
         player = Player(
             player_id=player_id,
             username=username,
@@ -321,19 +322,29 @@ class GameRoomManager:
         if room_id not in self.room_connections:
             return
         
-        disconnected = []
-        for player_id, websocket in self.room_connections[room_id].items():
-            if exclude_player and player_id == exclude_player:
-                continue
+        connections = self.room_connections[room_id]
+        
+        async def send_to_player(player_id, websocket):
             try:
                 await websocket.send_json(message)
+                return None
             except Exception as e:
                 print(f"Error sending message to player {player_id}: {e}")
-                disconnected.append(player_id)
+                return player_id
+
+        # Create tasks for all players in the room, excluding the specified player if any
+        tasks = [send_to_player(pid, ws) for pid, ws in connections.items() if pid != exclude_player]
+        
+        if not tasks:
+            return
+
+        # Run all sends concurrently
+        results = await asyncio.gather(*tasks)
         
         # Clean up disconnected players
-        for player_id in disconnected:
-            self.remove_connection(room_id, player_id)
+        for player_id in results:
+            if player_id is not None:
+                self.remove_connection(room_id, player_id)
 
     async def send_to_player(self, room_id: str, player_id: str, message: dict):
         """Send a private websocket message to a single player."""
