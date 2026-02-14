@@ -19,10 +19,23 @@ from enum import Enum
 # Initialize FastAPI app
 app = FastAPI(title="Cambio Card Game API")
 
+# Define allowed origins
+default_origins = [
+    "https://cambiogame.com",
+    "https://www.cambiogame.com",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+# Allow additional origins via environment variable
+env_origins = os.environ.get("ALLOWED_ORIGINS", "")
+if env_origins:
+    default_origins.extend([origin.strip() for origin in env_origins.split(",") if origin.strip()])
+
 # CORS middleware for frontend connection
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your frontend domain
+    allow_origins=default_origins,  # In production, specify your frontend domain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
