@@ -38,16 +38,16 @@ async function joinGame(username, roomId = null) {
 
     const endpoint = roomId ? `/api/rooms/${roomId}/join` : '/api/rooms';
     let payload;
-
+    
     if (roomId) {
         payload = { username };
     } else {
         const handSize = document.getElementById('hand-size-select')?.value || 4;
         const numDecks = document.getElementById('num-decks-select')?.value || 1;
         const redKingVariant = document.getElementById('red-king-variant')?.checked || false;
-
-        payload = {
-            username,
+        
+        payload = { 
+            username, 
             max_players: 8, // Increased max players default
             initial_hand_size: parseInt(handSize),
             num_decks: parseInt(numDecks),
@@ -150,12 +150,12 @@ function handleSocketMessage(event) {
                 const room = message.data.room;
                 const winnerId = message.data.winner_id;
                 const winnerName = message.data.winner_username;
-
+                
                 const modal = document.getElementById('game-over-modal');
                 const resultsDiv = document.getElementById('game-over-results');
                 if (modal && resultsDiv) {
                     modal.style.display = 'flex';
-
+                    
                     let html = `<p style="font-size:18px;">Winner: <strong>${winnerName}</strong></p>`;
                     html += `<table class="score-table">
                         <thead>
@@ -166,14 +166,14 @@ function handleSocketMessage(event) {
                             </tr>
                         </thead>
                         <tbody>`;
-
+                    
                     // Sort players by score
                     const sortedPlayers = [...room.players].sort((a, b) => a.score - b.score);
-
+                    
                     sortedPlayers.forEach(p => {
                         const isWinner = p.player_id === winnerId;
                         const rowClass = isWinner ? 'winner-row' : '';
-
+                        
                         // Show cards in hand
                         let cardsHtml = '<div style="display:flex; gap:5px; flex-wrap:wrap;">';
                         p.hand.forEach(c => {
@@ -193,12 +193,12 @@ function handleSocketMessage(event) {
                             <td>${cardsHtml}</td>
                         </tr>`;
                     });
-
+                    
                     html += `</tbody></table>`;
                     resultsDiv.innerHTML = html;
                 }
             }
-
+            
             pendingDrawnCard = null;
             pendingAbility = null;
             selectingTargets = false;
@@ -210,18 +210,18 @@ function handleSocketMessage(event) {
         case 'game_reset': {
             notify(message.data.message);
             latestRoomState = message.data.room;
-
+            
             // Hide modal
             const modal = document.getElementById('game-over-modal');
             if (modal) modal.style.display = 'none';
 
             renderBoard(message.data.room, playerContext.playerId);
-
+            
             // Highlight swapped cards
             const { player1_id, card1_index, player2_id, card2_index } = message.data;
-            if (player1_id !== undefined && card1_index !== undefined &&
+            if (player1_id !== undefined && card1_index !== undefined && 
                 player2_id !== undefined && card2_index !== undefined) {
-
+                
                 const highlight = (pid, idx) => {
                      // Need to find the button element in the DOM.
                      // The renderBoard function rebuilds the DOM, so we must find elements in the *new* DOM.
@@ -242,7 +242,7 @@ function handleSocketMessage(event) {
                             const allPlayers = latestRoomState.players;
                             const opponents = allPlayers.filter(p => p.player_id !== playerContext.playerId);
                             const oppIndex = opponents.findIndex(p => p.player_id === pid);
-
+                            
                             if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
                                 const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
                                 if (cardsDiv) {
@@ -252,13 +252,13 @@ function handleSocketMessage(event) {
                             }
                         }
                      }
-
+                     
                      if (btn) {
                          btn.classList.add('swapped-highlight');
                          setTimeout(() => btn.classList.remove('swapped-highlight'), 3000);
                      }
                 };
-
+                
                 highlight(player1_id, card1_index);
                 highlight(player2_id, card2_index);
             }
@@ -288,10 +288,10 @@ function handleSocketMessage(event) {
             notify(message.data.message);
             latestRoomState = message.data.room;
             renderBoard(message.data.room, playerContext.playerId);
-
+            
             // Highlight swapped cards
             const { player1_id, card1_index, player2_id, card2_index } = message.data;
-
+            
             const highlight = (pid, idx) => {
                  let btn = null;
                  if (pid === playerContext.playerId) {
@@ -306,7 +306,7 @@ function handleSocketMessage(event) {
                         const allPlayers = latestRoomState.players;
                         const opponents = allPlayers.filter(p => p.player_id !== playerContext.playerId);
                         const oppIndex = opponents.findIndex(p => p.player_id === pid);
-
+                        
                         if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
                             const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
                             if (cardsDiv) {
@@ -316,13 +316,13 @@ function handleSocketMessage(event) {
                         }
                     }
                  }
-
+                 
                  if (btn) {
                      btn.classList.add('swapped-highlight');
                      setTimeout(() => btn.classList.remove('swapped-highlight'), 3000);
                  }
             };
-
+            
             if (player1_id !== undefined && card1_index !== undefined) highlight(player1_id, card1_index);
             if (player2_id !== undefined && card2_index !== undefined) highlight(player2_id, card2_index);
             break;
@@ -346,7 +346,7 @@ function handleSocketMessage(event) {
             if (ability === 'peek_self' && playerContext.playerId === target_player_id) {
                 const text = `You peeked at your card #${card_index + 1}: ${formatCard(card)}`;
                 notify(text, duration || 5000);
-
+                
                 const cardContainer = document.getElementById('card-container');
                 if (cardContainer && cardContainer.children[card_index]) {
                     const cardButton = cardContainer.children[card_index];
@@ -371,10 +371,10 @@ function handleSocketMessage(event) {
             } else if (ability === 'look_and_swap' && first && second) {
                 // Reveal the cards visually
                 const revealCard = (pid, idx, c) => {
-                    const selector = pid === playerContext.playerId
+                    const selector = pid === playerContext.playerId 
                         ? `#card-container > button:nth-child(${idx + 1})`
                         : `#opponents-container .opponent-hand:has(.opponent-name:contains('${latestRoomState.players.find(p => p.player_id === pid)?.username}')) .opponent-cards button:nth-child(${idx + 1})`;
-
+                    
                     // Simple logic for finding the button. For opponents, it's tricky with :contains, let's just use index if we can find the player section.
                     let btn = null;
                     if (pid === playerContext.playerId) {
@@ -411,7 +411,7 @@ function handleSocketMessage(event) {
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
                 notify(`You saw: ${formatCard(first.card)} (${p1.username}) and ${formatCard(second.card)} (${p2.username})`);
-
+                
                 renderBoard(latestRoomState, playerContext.playerId);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
@@ -533,28 +533,28 @@ function startAbilitySelection(ability) {
     const nameDisplay = document.getElementById('ability-name-display');
     const desc = document.getElementById('ability-desc');
     const controls = document.getElementById('ability-controls');
-
+    
     if (panel && nameDisplay && desc) {
         panel.style.display = 'block';
         nameDisplay.innerText = ability;
         if (controls) controls.innerHTML = '';
-
+        
         let instructions = "";
         if (ability === 'peek_self') instructions = "Click one of YOUR cards to peek at it.";
         else if (ability === 'peek_other') instructions = "Click one of an OPPONENT'S cards to peek at it.";
         else if (ability === 'blind_swap') instructions = "Click ANY two cards to swap them.";
         else if (ability === 'look_and_swap') instructions = "Click ANY two cards to look at them. (Swap optional)";
-
+        
         desc.innerText = instructions;
     }
 }
 
 function handleCardClick(playerId, cardIndex, isOwnCard) {
     if (!selectingTargets) return;
-
+    
     // Add target
     selectedTargets.push({ player_id: playerId, card_index: cardIndex });
-
+    
     // Check if we have enough targets
     if (pendingAbility === 'peek_self') {
         if (!isOwnCard) {
@@ -580,7 +580,7 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
         } else if (selectedTargets.length === 2) {
             const first = selectedTargets[0];
             const second = selectedTargets[1];
-
+            
             // Immunity Check: Cannot target a player who called Cambio
             if (latestRoomState.game_state.cambio_caller) {
                 const caller = latestRoomState.game_state.cambio_caller;
@@ -591,10 +591,10 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
                 }
             }
 
-            sendMessage('use_ability', {
-                source_player_id: first.player_id,
+            sendMessage('use_ability', { 
+                source_player_id: first.player_id, 
                 source_card_index: first.card_index,
-                target_player_id: second.player_id,
+                target_player_id: second.player_id, 
                 target_card_index: second.card_index
             });
             selectingTargets = false;
@@ -621,21 +621,21 @@ function getVisualOrder(totalCards) {
     // Bottom Row: Indices N/2 to N-1
     // CSS Grid (grid-auto-flow: column; rows: 2) fills: Col1(Row1, Row2), Col2(Row1, Row2)...
     // So DOM Order must be: Top[0], Bottom[0], Top[1], Bottom[1]...
-
+    
     const indices = [];
     const half = Math.ceil(totalCards / 2);
-
+    
     for (let i = 0; i < half; i++) {
         // Top card in column i
         if (i < totalCards) indices.push(i);
         // Bottom card in column i (index i + half)
         if (i + half < totalCards) indices.push(i + half);
     }
-
+    
     // Sort logic check:
     // 4 cards (half=2): i=0 -> push(0), push(2). i=1 -> push(1), push(3). Result: [0, 2, 1, 3]. Correct.
     // 6 cards (half=3): i=0 -> push(0), push(3). i=1 -> push(1), push(4). i=2 -> push(2), push(5). Result: [0, 3, 1, 4, 2, 5]. Correct.
-
+    
     return indices;
 }
 
@@ -687,7 +687,7 @@ function renderBoard(room, yourPlayerId) {
     if (startGameBtn) {
         const isWaiting = room.status === 'waiting' || room.status === 'WAITING';
         const isFinished = room.status === 'finished' || room.status === 'FINISHED';
-
+        
         if (isWaiting) {
             if (room.players.length >= room.min_players) {
                 startGameBtn.style.display = 'block';
@@ -764,7 +764,7 @@ function renderBoard(room, yourPlayerId) {
             if (pendingDrawnCard) {
                 drawChoicePanel.style.display = 'block';
                 drawnCardDisplay.textContent = formatCard(pendingDrawnCard);
-
+                
                 // If drawn from discard pile, you cannot discard it again
                 if (discardDrawnBtn) {
                      // Check if last draw source was discard
@@ -808,7 +808,7 @@ function renderBoard(room, yourPlayerId) {
                 const nameDisplay = document.getElementById('ability-name-display');
                 const desc = document.getElementById('ability-desc');
                 const controls = document.getElementById('ability-controls');
-
+                
                 if (nameDisplay) nameDisplay.innerText = "Swap Decision";
                 if (desc) desc.innerText = "Do you want to swap the cards you just saw?";
                 if (controls) {
@@ -837,7 +837,7 @@ function renderBoard(room, yourPlayerId) {
             // 4. Cambio hasn't been called yet
             const isMyTurn = room.game_state.current_turn === yourPlayerId;
             const canCall = isMyTurn && !pendingDrawnCard && !pendingAbility && !room.game_state.cambio_called;
-
+            
             callCambioBtn.disabled = !canCall;
             if (room.game_state.cambio_called) {
                 callCambioBtn.title = "Cambio has already been called";
@@ -873,10 +873,10 @@ function renderBoard(room, yourPlayerId) {
                 cardDiv.style.margin = "0 auto";
                 cardDiv.style.position = "relative";
                 cardDiv.style.boxShadow = "2px 2px 5px rgba(0,0,0,0.2)";
-
+                
                 renderCardContent(cardDiv, topCard);
                 topCardContainer.appendChild(cardDiv);
-
+                
                 // Remove default padding/border of container if card is present
                 topCardContainer.style.padding = "0";
                 topCardContainer.style.border = "none";
@@ -925,15 +925,15 @@ function renderBoard(room, yourPlayerId) {
 
             if (me) {
                 const isAwaitingDrawChoice = !!pendingDrawnCard;
-
+                
                 // Use visual order for rendering
                 const visualOrder = getVisualOrder(me.hand.length);
-
+                
                 visualOrder.forEach(index => {
                     const card = me.hand[index];
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
-
+                    
                     if (!card) {
                         // Empty slot (hole)
                         btn.innerText = "";
@@ -946,7 +946,7 @@ function renderBoard(room, yourPlayerId) {
                         const half = Math.ceil(me.hand.length / 2);
                         const isBottomCard = index >= half;
                         const isVisible = (isViewingPhase && isBottomCard) || adminMode;
-
+                        
                         // Clear old classes
                         btn.classList.remove('card-back', 'card-red', 'card-black', 'card-special-king');
 
@@ -972,7 +972,7 @@ function renderBoard(room, yourPlayerId) {
                             btn.style.borderColor = "#00acc1";
                             btn.style.cursor = "pointer";
                             btn.innerText = "🎯";
-                        }
+                        } 
                         // Priority 2: Swapping drawn card (Draw phase)
                         else if (isAwaitingDrawChoice) {
                             btn.addEventListener('click', () => resolveDraw('swap', index));
@@ -1014,15 +1014,15 @@ function renderBoard(room, yourPlayerId) {
                 section.appendChild(nameEl);
                 const cardsDiv = document.createElement('div');
                 cardsDiv.className = 'opponent-cards';
-
+                
                 // Use visual order
                 const visualOrder = getVisualOrder(player.hand.length);
-
+                
                 visualOrder.forEach(index => {
                     const card = player.hand[index];
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
-
+                    
                     if (!card) {
                         // Empty slot
                         btn.innerText = "";
@@ -1051,7 +1051,7 @@ function renderBoard(room, yourPlayerId) {
                          btn.style.borderColor = "#00acc1";
                          btn.style.cursor = "pointer";
                          btn.innerText = "🎯";
-                    }
+                    } 
                     // Priority 2: Elimination (Normal phase, if no draw pending)
                     else if (!mustResolveDraw) {
                         if (eliminationTarget && eliminationTarget.pid === player.player_id && eliminationTarget.idx === index) {
@@ -1101,11 +1101,11 @@ function getSuitSymbol(suit) {
 
 function renderCardContent(element, card) {
     element.innerHTML = '';
-
+    
     // Add color classes
     const color = getCardColor(card);
     element.classList.add(color === 'red' ? 'card-red' : 'card-black');
-
+    
     // Check for Red King special highlight
     if (card.rank === 'King' && color === 'red') {
         element.classList.add('card-special-king');
@@ -1216,7 +1216,7 @@ function fallbackCopy(text, onSuccess) {
     document.body.appendChild(textarea);
     textarea.focus();
     textarea.select();
-
+    
     try {
         const successful = document.execCommand('copy');
         if (successful) {
@@ -1227,7 +1227,7 @@ function fallbackCopy(text, onSuccess) {
     } catch (err) {
         prompt("Copy this Room ID:", text);
     }
-
+    
     document.body.removeChild(textarea);
 }
 
