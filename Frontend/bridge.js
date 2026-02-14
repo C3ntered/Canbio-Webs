@@ -5,13 +5,10 @@ const getApiBase = () => {
     if (window.location.protocol === 'file:') {
         return 'http://localhost:8000';
     }
-    // Otherwise use the same protocol and hostname (assumes API is on same server/port)
-    // For development, if HTML is served from port 8000, API is also on 8000
-    const protocol = window.location.protocol;
-    const hostname = window.location.hostname;
-    const port = window.location.port || (protocol === 'https:' ? '443' : '80');
-    // If port is different (e.g., HTML on 3000, API on 8000), use port 8000
-    return `${protocol}//${hostname}:8000`;
+    // Otherwise use the current origin (protocol + hostname + port)
+    // This works for both local development (http://localhost:8000)
+    // and production (https://cambiogame.com)
+    return window.location.origin;
 };
 
 const API_BASE = getApiBase();

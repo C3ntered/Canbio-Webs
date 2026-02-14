@@ -42,8 +42,14 @@ app.add_middleware(
 )
 
 # Serve static files (bridge.js, etc.)
-static_dir = os.path.dirname(os.path.abspath(__file__))
-app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Serve static files (bridge.js, etc.)
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(base_dir, "Frontend")
+if not os.path.exists(frontend_dir):
+    # Fallback if running from a different context
+    frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../Frontend")
+
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 # ============================================================================
 # Data Models (Pydantic)
@@ -594,15 +600,15 @@ room_manager = GameRoomManager()
 @app.get("/")
 async def root():
     """Serve the main HTML file"""
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.html")
+    html_path = os.path.join(frontend_dir, "index.html")
     if os.path.exists(html_path):
         return FileResponse(html_path)
-    return {"message": "Cambio Card Game API", "status": "running", "note": "main.html not found"}
+    return {"message": "Cambio Card Game API", "status": "running", "note": f"index.html not found in {frontend_dir}"}
 
 @app.get("/instructions")
 async def instructions():
     """Serve the instructions HTML file"""
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instructions.html")
+    html_path = os.path.join(frontend_dir, "instructions.html")
     if os.path.exists(html_path):
         return FileResponse(html_path)
     return {"message": "Instructions not found", "status": "running"}
@@ -635,7 +641,7 @@ async def join_room(room_id: str, request: JoinRoomRequest):
         return {
             "room": room,
             "player_id": player_id,
-            "websocket_url": f"ws://localhost:8000/ws/{room_id}"
+            "websocket_url": f"/ws/{room_id}"
         }
     except HTTPException as e:
         raise e
