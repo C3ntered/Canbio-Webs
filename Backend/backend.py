@@ -14,6 +14,7 @@ import uuid
 import random
 import json
 import os
+import asyncio
 from enum import Enum
 
 # Initialize FastAPI app
@@ -321,19 +322,29 @@ class GameRoomManager:
         if room_id not in self.room_connections:
             return
         
-        disconnected = []
-        for player_id, websocket in self.room_connections[room_id].items():
-            if exclude_player and player_id == exclude_player:
-                continue
+        connections = self.room_connections[room_id]
+
+        async def send_to_player(player_id, websocket):
             try:
                 await websocket.send_json(message)
+                return None
             except Exception as e:
                 print(f"Error sending message to player {player_id}: {e}")
-                disconnected.append(player_id)
+                return player_id
+
+        # Create tasks for all players in the room, excluding the specified player if any
+        tasks = [send_to_player(pid, ws) for pid, ws in connections.items() if pid != exclude_player]
+
+        if not tasks:
+            return
+
+        # Run all sends concurrently
+        results = await asyncio.gather(*tasks)
         
         # Clean up disconnected players
-        for player_id in disconnected:
-            self.remove_connection(room_id, player_id)
+        for player_id in results:
+            if player_id is not None:
+                self.remove_connection(room_id, player_id)
 
     async def send_to_player(self, room_id: str, player_id: str, message: dict):
         """Send a private websocket message to a single player."""
