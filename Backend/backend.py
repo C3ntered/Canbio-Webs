@@ -158,8 +158,8 @@ class GameRoomManager:
     
     def create_room(self, username: str, max_players: int = 8, num_decks: Optional[int] = None, initial_hand_size: int = 4, red_king_variant: bool = False) -> Room:
         """Create a new game room"""
-        room_id = str(uuid.uuid4())[:8]
-        player_id = str(uuid.uuid4())[:8]
+        room_id = str(uuid.uuid4())
+        player_id = str(uuid.uuid4())
         
         # Auto-calculate number of decks if not specified: 2 decks if max_players > 5
         if num_decks is None:
@@ -201,7 +201,7 @@ class GameRoomManager:
         if len(room.players) >= room.max_players:
             raise HTTPException(status_code=400, detail="Room is full")
         
-        player_id = str(uuid.uuid4())[:8]
+        player_id = str(uuid.uuid4())
         player = Player(
             player_id=player_id,
             username=username,
