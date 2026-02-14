@@ -29,7 +29,9 @@ app.add_middleware(
 )
 
 # Serve static files (bridge.js, etc.)
-static_dir = os.path.dirname(os.path.abspath(__file__))
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+frontend_dir = os.path.join(base_dir, "Frontend")
+static_dir = frontend_dir
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 # ============================================================================
@@ -581,15 +583,15 @@ room_manager = GameRoomManager()
 @app.get("/")
 async def root():
     """Serve the main HTML file"""
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.html")
+    html_path = os.path.join(frontend_dir, "index.html")
     if os.path.exists(html_path):
         return FileResponse(html_path)
-    return {"message": "Cambio Card Game API", "status": "running", "note": "main.html not found"}
+    return {"message": "Cambio Card Game API", "status": "running", "note": "index.html not found"}
 
 @app.get("/instructions")
 async def instructions():
     """Serve the instructions HTML file"""
-    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instructions.html")
+    html_path = os.path.join(frontend_dir, "instructions.html")
     if os.path.exists(html_path):
         return FileResponse(html_path)
     return {"message": "Instructions not found", "status": "running"}
