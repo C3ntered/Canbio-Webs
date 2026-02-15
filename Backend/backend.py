@@ -113,6 +113,7 @@ class Room(BaseModel):
     num_decks: int = 1  # Number of decks to use (auto-calculated if >5 players)
     initial_hand_size: int = 4  # Number of cards to deal per player
     red_king_variant: bool = False # If True, Red Kings are -2
+    last_winner_id: Optional[str] = None
 
 class CreateRoomRequest(BaseModel):
     username: str
@@ -266,6 +267,21 @@ class GameRoomManager:
         # Start in viewing phase - Players look at 2 cards
         room.game_state.game_phase = "viewing"
         room.game_state.viewing_phase = True
+
+        # Set starting player for the round
+        starter_id = None
+        if room.last_winner_id:
+            # Check if winner is still in the room
+            if any(p.player_id == room.last_winner_id for p in room.players):
+                starter_id = room.last_winner_id
+
+        if not starter_id:
+            # First round or winner left -> Random player
+            if room.players:
+                starter_id = random.choice(room.players).player_id
+
+        room.game_state.current_turn = starter_id
+        room.game_state.turn_number = 1
     
     def create_deck(self, num_decks: int = 1) -> List[Card]:
         """Create one or more standard 54-card decks (52 cards + 2 Jokers per deck)"""
@@ -383,10 +399,8 @@ class GameRoomManager:
         room.status = GameStatus.FINISHED
         room.game_state.game_phase = "finished"
         
-        # Update winner's score
-        winner = next((p for p in room.players if p.player_id == winner_id), None)
-        if winner:
-            winner.score += 1
+        # Store winner ID for next round
+        room.last_winner_id = winner_id
     
     def next_turn(self, room_id: str) -> Optional[str]:
         """Move to next player's turn. Returns winner_id if the round ends."""
@@ -1268,7 +1282,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     
                     # Start the game loop
                     if room.players:
-                        room.game_state.current_turn = room.players[0].player_id
+                        # Ensure turn is set (should be set by start_game)
+                        if not room.game_state.current_turn:
+                            room.game_state.current_turn = room.players[0].player_id
                         room.game_state.turn_number = 1
                     
                     await room_manager.broadcast_to_room(room_id, {
