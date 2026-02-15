@@ -445,7 +445,7 @@ class GameRoomManager:
         # Sort players by score (asc), then by hand size (asc)
         sorted_players = sorted(
             room.players, 
-            key=lambda p: (p.score, len([c for c in p.hand if c]))
+            key=lambda p: (p.score, len([c for c in p.hand if c]), 0 if p.player_id == room.game_state.cambio_caller else 1)
         )
         
         winner = sorted_players[0] if sorted_players else None
