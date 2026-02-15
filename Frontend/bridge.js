@@ -46,7 +46,9 @@ let selectingTargets = false; // Mode for selecting targets
 let selectedTargets = [];     // Targets selected so far
 let pendingSwapDecision = false; // Mode for deciding whether to swap
 let eliminationTarget = null; // Target for elimination (waiting for replacement card selection)
-let adminMode = false; // Admin debug mode to see all cards
+let adminMode = false;
+let isAnimating = false;
+let activeLookIndicators = {}; // State of cards being looked at
 
 async function joinGame(username, roomId = null) {
     if (!username) {
@@ -328,6 +330,7 @@ function handleSocketMessage(event) {
             notify(`Penalty: You drew a face-down penalty card.`);
             break;
         case 'cards_swapped':
+            console.log('cards_swapped message received', message.data);
             pendingDrawnCard = null; // Ensure draw state is cleared
             notify(message.data.message);
             
@@ -371,19 +374,33 @@ function handleSocketMessage(event) {
             renderBoard(message.data.room, playerContext.playerId);
             break;
         case 'card_being_looked_at':
+            console.log('card_being_looked_at message received', message.data);
             const { player_id: looking_pid, target_player_id: t_pid, card_index: c_idx, duration: look_dur } = message.data;
-            if (looking_pid === playerContext.playerId) return;
+            if (looking_pid === playerContext.playerId) break;
 
+            // Store in state
+            if (!activeLookIndicators[t_pid]) activeLookIndicators[t_pid] = {};
+            activeLookIndicators[t_pid][c_idx] = true;
+
+            // Apply immediately
             const lookedBtn = findCardElement(t_pid, c_idx, latestRoomState, playerContext.playerId);
             if (lookedBtn) {
                 lookedBtn.classList.add('being-looked-at');
-                setTimeout(() => {
-                    lookedBtn.classList.remove('being-looked-at');
-                }, look_dur || 3000);
-                
-                const pName = latestRoomState.players.find(p => p.player_id === looking_pid)?.username || 'Someone';
-                notify(`${pName} is looking at a card...`, 2000);
+            } else {
+                console.warn('card_being_looked_at: Button not found', t_pid, c_idx);
             }
+
+            const pName = latestRoomState.players.find(p => p.player_id === looking_pid)?.username || 'Someone';
+            notify(`${pName} is looking at a card...`, 2000);
+
+            // Remove after duration
+            setTimeout(() => {
+                if (activeLookIndicators[t_pid]) {
+                    delete activeLookIndicators[t_pid][c_idx];
+                }
+                const btn = findCardElement(t_pid, c_idx, latestRoomState, playerContext.playerId);
+                if (btn) btn.classList.remove('being-looked-at');
+            }, look_dur || 3000);
             break;
         case 'ability_resolution':
             const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
@@ -657,6 +674,10 @@ function getVisualOrder(totalCards) {
 }
 
 function renderBoard(room, yourPlayerId) {
+    if (isAnimating) {
+        console.log('Skipping render due to animation');
+        return;
+    }
     if (!room) {
         return;
     }
@@ -1093,6 +1114,7 @@ function renderBoard(room, yourPlayerId) {
         if (myHandContainer) myHandContainer.style.display = 'none';
         if (opponentsHandsContainer) opponentsHandsContainer.style.display = 'none';
     }
+    applyIndicators();
 }
 
 function formatCard(card) {
@@ -1276,41 +1298,216 @@ window.skipAbility = skipAbility;
 window.toggleAdminMode = toggleAdminMode;
 
 function findCardElement(pid, idx, roomState, myPlayerId) {
-    let btn = null;
+    console.log('findCardElement called:', pid, idx, myPlayerId);
+
+    // Check if idx is undefined or null
+    if (idx === undefined || idx === null) {
+        console.warn('findCardElement: Invalid index', idx);
+        return null;
+    }
+
+    // Find the player object
+    const player = roomState.players.find(p => p.player_id === pid);
+    if (!player) {
+        console.warn('findCardElement: Player not found', pid);
+        return null;
+    }
+
+    let container = null;
+
     if (pid === myPlayerId) {
-        const container = document.getElementById('card-container');
-        if (container) {
-            const buttons = Array.from(container.children);
-            btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
-        }
+        container = document.getElementById('card-container');
     } else {
+        // Find opponent container
         const oppContainer = document.getElementById('opponents-container');
         if (oppContainer) {
-            const allPlayers = roomState.players;
-            const opponents = allPlayers.filter(p => p.player_id !== myPlayerId);
+            // Re-derive index logic used in renderBoard
+            const opponents = roomState.players.filter(p => p.player_id !== myPlayerId);
             const oppIndex = opponents.findIndex(p => p.player_id === pid);
 
             if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
-                const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
-                if (cardsDiv) {
-                     const buttons = Array.from(cardsDiv.children);
-                     btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
-                }
+                 container = oppContainer.children[oppIndex].querySelector('.opponent-cards');
             }
         }
     }
-    return btn;
+
+    if (container) {
+        // Select button with matching data-index
+        // Using attribute selector is safer than assuming child index
+        const btn = container.querySelector(`button[data-index='${idx}']`);
+        if (!btn) console.warn('findCardElement: Button with data-index', idx, 'not found in container');
+        return btn;
+    }
+
+    console.warn('findCardElement: Container not found for', pid);
+    return null;
 }
 
 function animateSwap(player1_id, card1_index, player2_id, card2_index, callback) {
+    console.log('animateSwap called:', player1_id, card1_index, player2_id, card2_index);
+    isAnimating = true;
+
     // Use global latestRoomState for current DOM positions
     const el1 = findCardElement(player1_id, card1_index, latestRoomState, playerContext.playerId);
     const el2 = findCardElement(player2_id, card2_index, latestRoomState, playerContext.playerId);
 
     if (!el1 || !el2) {
+        console.warn('animateSwap: Elements not found. el1:', !!el1, 'el2:', !!el2);
+        isAnimating = false;
         if (callback) callback();
         return;
     }
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+
+    // Create clones
+    const clone1 = el1.cloneNode(true);
+    const clone2 = el2.cloneNode(true);
+
+    clone1.classList.add('swapping-clone');
+    clone2.classList.add('swapping-clone');
+
+    // Style clones
+    function styleClone(clone, rect) {
+        clone.style.position = 'fixed';
+        clone.style.top = rect.top + 'px';
+        clone.style.left = rect.left + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.transform = 'none';
+        clone.style.zIndex = '9999';
+        clone.style.pointerEvents = 'none';
+        document.body.appendChild(clone);
+    }
+
+    styleClone(clone1, rect1);
+    styleClone(clone2, rect2);
+
+    // Hide originals
+    el1.style.visibility = 'hidden';
+    el2.style.visibility = 'hidden';
+
+    // Force layout
+    void clone1.offsetHeight;
+
+    // Animate
+    requestAnimationFrame(() => {
+        clone1.style.top = rect2.top + 'px';
+        clone1.style.left = rect2.left + 'px';
+
+        clone2.style.top = rect1.top + 'px';
+        clone2.style.left = rect1.left + 'px';
+    });
+
+    setTimeout(() => {
+        if (clone1.parentNode) document.body.removeChild(clone1);
+        if (clone2.parentNode) document.body.removeChild(clone2);
+
+        isAnimating = false;
+        console.log('Animation finished, calling callback');
+        if (callback) callback();
+    }, 700);
+}
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+
+    // Create clones
+    const clone1 = el1.cloneNode(true);
+    const clone2 = el2.cloneNode(true);
+
+    // Style clones
+    function styleClone(clone, rect) {
+        clone.classList.add('swapping-clone');
+        clone.style.position = 'fixed'; // Ensure fixed positioning
+        clone.style.top = rect.top + 'px';
+        clone.style.left = rect.left + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.transform = 'none';
+        clone.style.zIndex = '9999';
+        document.body.appendChild(clone);
+    }
+
+    styleClone(clone1, rect1);
+    styleClone(clone2, rect2);
+
+    // Hide originals
+    el1.style.visibility = 'hidden';
+    el2.style.visibility = 'hidden';
+
+    // Force layout
+    void clone1.offsetHeight;
+
+    // Animate
+    requestAnimationFrame(() => {
+        clone1.style.top = rect2.top + 'px';
+        clone1.style.left = rect2.left + 'px';
+
+        clone2.style.top = rect1.top + 'px';
+        clone2.style.left = rect1.left + 'px';
+    });
+
+    setTimeout(() => {
+        if (clone1.parentNode) document.body.removeChild(clone1);
+        if (clone2.parentNode) document.body.removeChild(clone2);
+
+        isAnimating = false;
+        console.log('Animation finished, calling callback');
+        if (callback) callback();
+    }, 700);
+}
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+
+    // Create clones
+    const clone1 = el1.cloneNode(true);
+    const clone2 = el2.cloneNode(true);
+
+    // Style clones
+    const styleClone = (clone, rect) => {
+        clone.classList.add('swapping-clone');
+        clone.style.top = rect.top + 'px';
+        clone.style.left = rect.left + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        clone.style.transform = 'none'; // Ensure no existing transforms
+        document.body.appendChild(clone);
+    };
+
+    styleClone(clone1, rect1);
+    styleClone(clone2, rect2);
+
+    // Hide originals
+    el1.style.visibility = 'hidden';
+    el2.style.visibility = 'hidden';
+
+    // Force layout
+    clone1.offsetHeight;
+
+    // Animate
+    requestAnimationFrame(() => {
+        clone1.style.top = rect2.top + 'px';
+        clone1.style.left = rect2.left + 'px';
+
+        clone2.style.top = rect1.top + 'px';
+        clone2.style.left = rect1.left + 'px';
+    });
+
+    setTimeout(() => {
+        if (clone1.parentNode) document.body.removeChild(clone1);
+        if (clone2.parentNode) document.body.removeChild(clone2);
+
+        // Unlock and callback
+        isAnimating = false;
+        if (callback) callback();
+    }, 700);
+}
 
     const rect1 = el1.getBoundingClientRect();
     const rect2 = el2.getBoundingClientRect();
@@ -1356,4 +1553,63 @@ function animateSwap(player1_id, card1_index, player2_id, card2_index, callback)
         if (clone2.parentNode) document.body.removeChild(clone2);
         if (callback) callback();
     }, 700);
+}
+
+// Debugging
+window.debugLook = function() {
+    notify('Debugging look indicator...');
+    const opponents = document.getElementById('opponents-container');
+    if (opponents && opponents.children.length > 0) {
+        const btn = opponents.children[0].querySelector('.opponent-cards button');
+        if (btn) {
+            btn.classList.add('being-looked-at');
+            setTimeout(() => btn.classList.remove('being-looked-at'), 3000);
+        } else {
+            notify('No opponent button found');
+        }
+    } else {
+        notify('No opponents found');
+    }
+};
+
+window.debugSwap = function() {
+    notify('Debugging swap...');
+    const myContainer = document.getElementById('card-container');
+    const oppContainer = document.getElementById('opponents-container');
+
+    if (myContainer && myContainer.children.length > 0 && oppContainer && oppContainer.children.length > 0) {
+        const myBtn = myContainer.children[0];
+        const oppBtn = oppContainer.children[0].querySelector('.opponent-cards button');
+
+        if (myBtn && oppBtn) {
+            const rect1 = myBtn.getBoundingClientRect();
+            const rect2 = oppBtn.getBoundingClientRect();
+
+            const clone1 = myBtn.cloneNode(true);
+            clone1.classList.add('swapping-clone');
+            clone1.style.top = rect1.top + 'px';
+            clone1.style.left = rect1.left + 'px';
+            clone1.style.width = rect1.width + 'px';
+            clone1.style.height = rect1.height + 'px';
+            document.body.appendChild(clone1);
+
+            setTimeout(() => {
+                clone1.style.top = rect2.top + 'px';
+                clone1.style.left = rect2.left + 'px';
+            }, 10);
+
+            setTimeout(() => {
+                document.body.removeChild(clone1);
+            }, 1000);
+        }
+    }
+};
+
+function applyIndicators() {
+    for (const [pid, indices] of Object.entries(activeLookIndicators)) {
+        for (const idx of Object.keys(indices)) {
+             const btn = findCardElement(pid, parseInt(idx), latestRoomState, playerContext.playerId);
+             if (btn) btn.classList.add('being-looked-at');
+        }
+    }
 }
