@@ -408,29 +408,59 @@ function handleSocketMessage(event) {
 
             const animateReveal = (pid, idx, cardData) => {
                 const btn = findCardElement(pid, idx, latestRoomState, playerContext.playerId);
-                if (btn) {
-                    btn.classList.add('flipping-out');
-                    setTimeout(() => {
-                        btn.classList.remove('flipping-out');
-                        renderCardContent(btn, cardData);
-                        btn.classList.add('flipping-in');
+                if (!btn) {
+                    console.warn('animateReveal: Button not found for', pid, idx);
+                    return;
+                }
+                
+                console.log('Revealing card:', formatCard(cardData), 'for player', pid, 'index', idx);
+                
+                // Store original state
+                const originalHTML = btn.innerHTML;
+                const originalClasses = btn.className;
+                const originalBackground = btn.style.background;
+                
+                // Step 1: Flip out (hide back)
+                btn.classList.add('flipping-out');
+                setTimeout(() => {
+                    // Step 2: Show card face
+                    btn.classList.remove('flipping-out');
+                    btn.classList.remove('card-back');
+                    renderCardContent(btn, cardData);
+                    btn.style.backgroundColor = 'white';
+                    btn.classList.add('flipping-in');
+                    
+                    // Add glow effect to emphasize the reveal
+                    btn.style.boxShadow = '0 0 20px 5px rgba(255, 215, 0, 0.8)';
 
+                    setTimeout(() => {
+                        // Step 3: Hold the reveal
+                        btn.classList.remove('flipping-in');
+                        
                         setTimeout(() => {
-                            btn.classList.remove('flipping-in');
+                            // Step 4: Flip back out
                             btn.classList.add('flipping-out');
 
                             setTimeout(() => {
+                                // Step 5: Restore to card back
                                 btn.classList.remove('flipping-out');
-                                btn.innerHTML = '';
-                                btn.innerText = '🂠';
-                                btn.className = '';
-                                btn.style.background = '';
+                                btn.innerHTML = originalHTML || '';
+                                btn.className = originalClasses || '';
+                                btn.style.background = originalBackground || '';
+                                btn.style.boxShadow = '';
+                                
+                                // If it was a card back, restore it
+                                if (!originalHTML || originalHTML.trim() === '🂠' || originalHTML === '') {
+                                    btn.classList.add('card-back');
+                                    btn.innerText = '🂠';
+                                }
+                                
                                 btn.classList.add('flipping-in');
                                 setTimeout(() => btn.classList.remove('flipping-in'), 300);
                             }, 300);
-                        }, dur);
+                        }, dur - 600); // Subtract the animation times
                     }, 300);
-                }
+                }, 300);
             };
 
             if (ability === 'peek_self' || ability === 'peek_other') {
