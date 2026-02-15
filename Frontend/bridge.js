@@ -403,6 +403,7 @@ function handleSocketMessage(event) {
             }, look_dur || 3000);
             break;
         case 'ability_resolution':
+            console.log('ability_resolution received:', message.data);
             const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
             const dur = duration || 3000;
 
@@ -410,10 +411,13 @@ function handleSocketMessage(event) {
                 const btn = findCardElement(pid, idx, latestRoomState, playerContext.playerId);
                 if (!btn) {
                     console.warn('animateReveal: Button not found for', pid, idx);
+                    console.warn('latestRoomState:', latestRoomState);
+                    console.warn('DOM container:', pid === playerContext.playerId ? 'card-container' : 'opponents-container');
                     return;
                 }
                 
                 console.log('Revealing card:', formatCard(cardData), 'for player', pid, 'index', idx);
+                console.log('Button found:', btn, 'innerHTML:', btn.innerHTML, 'classes:', btn.className);
                 
                 // Store original state
                 const originalHTML = btn.innerHTML;
@@ -464,8 +468,15 @@ function handleSocketMessage(event) {
             };
 
             if (ability === 'peek_self' || ability === 'peek_other') {
-                animateReveal(target_player_id, card_index, card);
-                const targetName = latestRoomState.players.find(p => p.player_id === target_player_id)?.username || 'Unknown';
+                // Make sure the board is rendered before trying to animate
+                if (latestRoomState) {
+                    renderBoard(latestRoomState, playerContext.playerId);
+                }
+                // Use setTimeout to ensure DOM has updated
+                setTimeout(() => {
+                    animateReveal(target_player_id, card_index, card);
+                }, 50);
+                const targetName = latestRoomState?.players.find(p => p.player_id === target_player_id)?.username || 'Unknown';
                 notify(`You peeked at ${targetName}'s card #${card_index + 1}: ${formatCard(card)}`, dur);
             } else if (ability === 'look_and_swap' && first && second) {
                 pendingSwapDecision = true;
