@@ -467,6 +467,8 @@ class GameRoomManager:
             if index is None or not validate_index(acting_player.hand, index):
                 return False
             card = acting_player.hand[index]
+
+            # Send private reveal
             await self.send_to_player(room_id, acting_player.player_id, {
                 "type": "ability_resolution",
                 "data": {
@@ -474,7 +476,18 @@ class GameRoomManager:
                     "card": card.model_dump(mode='json'),
                     "target_player_id": acting_player.player_id,
                     "card_index": index,
-                    "duration": 5000
+                    "duration": 3000
+                }
+            })
+
+            # Broadcast indicator
+            await self.broadcast_to_room(room_id, {
+                "type": "card_being_looked_at",
+                "data": {
+                    "player_id": acting_player.player_id,
+                    "target_player_id": acting_player.player_id,
+                    "card_index": index,
+                    "duration": 3000
                 }
             })
             return True
@@ -488,6 +501,8 @@ class GameRoomManager:
             if not target or not validate_index(target.hand, index):
                 return False
             card = target.hand[index]
+
+            # Send private reveal
             await self.send_to_player(room_id, acting_player.player_id, {
                 "type": "ability_resolution",
                 "data": {
@@ -495,7 +510,18 @@ class GameRoomManager:
                     "card": card.model_dump(mode='json'),
                     "target_player_id": target_id,
                     "card_index": index,
-                    "duration": 5000
+                    "duration": 3000
+                }
+            })
+
+            # Broadcast indicator
+            await self.broadcast_to_room(room_id, {
+                "type": "card_being_looked_at",
+                "data": {
+                    "player_id": acting_player.player_id,
+                    "target_player_id": target_id,
+                    "card_index": index,
+                    "duration": 3000
                 }
             })
             return True
@@ -604,6 +630,28 @@ class GameRoomManager:
                     "first": {"player_id": first_player.player_id, "card_index": first_idx, "card": first_card.model_dump(mode='json')},
                     "second": {"player_id": second_player.player_id, "card_index": second_idx, "card": second_card.model_dump(mode='json')},
                     "message": "Review the cards. Do you want to swap them?"
+                }
+            })
+
+            # Broadcast indicator for FIRST card
+            await self.broadcast_to_room(room_id, {
+                "type": "card_being_looked_at",
+                "data": {
+                    "player_id": acting_player.player_id,
+                    "target_player_id": first_player.player_id,
+                    "card_index": first_idx,
+                    "duration": 5000
+                }
+            })
+
+            # Broadcast indicator for SECOND card
+            await self.broadcast_to_room(room_id, {
+                "type": "card_being_looked_at",
+                "data": {
+                    "player_id": acting_player.player_id,
+                    "target_player_id": second_player.player_id,
+                    "card_index": second_idx,
+                    "duration": 5000
                 }
             })
             
