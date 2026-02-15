@@ -460,6 +460,37 @@
             background-color: #e8f5e9;
             font-weight: bold;
         }
+        /* Animation classes */
+        .flipping-out {
+            transform: scaleX(0);
+            transition: transform 0.3s ease-in;
+        }
+        .flipping-in {
+            transform: scaleX(1);
+            transition: transform 0.3s ease-out;
+        }
+        .being-looked-at {
+            position: relative;
+            box-shadow: 0 0 15px 5px rgba(33, 150, 243, 0.7) !important;
+            border-color: #2196F3 !important;
+        }
+        .being-looked-at::before {
+            content: "👁️";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            z-index: 10;
+            text-shadow: 0 0 5px white;
+        }
+        .swapping-clone {
+            position: fixed;
+            z-index: 9999;
+            transition: top 0.7s ease-in-out, left 0.7s ease-in-out, transform 0.7s ease-in-out;
+            pointer-events: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+        }
     </style>
 </head>
 <body>

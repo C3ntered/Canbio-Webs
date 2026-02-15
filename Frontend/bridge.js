@@ -330,45 +330,31 @@ function handleSocketMessage(event) {
         case 'cards_swapped':
             pendingDrawnCard = null; // Ensure draw state is cleared
             notify(message.data.message);
-            latestRoomState = message.data.room;
-            renderBoard(message.data.room, playerContext.playerId);
             
-            // Highlight swapped cards
             const { player1_id, card1_index, player2_id, card2_index } = message.data;
-            
-            const highlight = (pid, idx) => {
-                 let btn = null;
-                 if (pid === playerContext.playerId) {
-                     const container = document.getElementById('card-container');
-                     if (container) {
-                         const buttons = Array.from(container.children);
-                         btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
+
+            const finishSwap = () => {
+                latestRoomState = message.data.room;
+                renderBoard(message.data.room, playerContext.playerId);
+
+                // Highlight swapped cards
+                const highlight = (pid, idx) => {
+                     const btn = findCardElement(pid, idx, latestRoomState, playerContext.playerId);
+                     if (btn) {
+                         btn.classList.add('swapped-highlight');
+                         setTimeout(() => btn.classList.remove('swapped-highlight'), 3000);
                      }
-                 } else {
-                    const oppContainer = document.getElementById('opponents-container');
-                    if (oppContainer) {
-                        const allPlayers = latestRoomState.players;
-                        const opponents = allPlayers.filter(p => p.player_id !== playerContext.playerId);
-                        const oppIndex = opponents.findIndex(p => p.player_id === pid);
-                        
-                        if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
-                            const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
-                            if (cardsDiv) {
-                                 const buttons = Array.from(cardsDiv.children);
-                                 btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
-                            }
-                        }
-                    }
-                 }
-                 
-                 if (btn) {
-                     btn.classList.add('swapped-highlight');
-                     setTimeout(() => btn.classList.remove('swapped-highlight'), 3000);
-                 }
+                };
+
+                if (player1_id !== undefined && card1_index !== undefined) highlight(player1_id, card1_index);
+                if (player2_id !== undefined && card2_index !== undefined) highlight(player2_id, card2_index);
             };
-            
-            if (player1_id !== undefined && card1_index !== undefined) highlight(player1_id, card1_index);
-            if (player2_id !== undefined && card2_index !== undefined) highlight(player2_id, card2_index);
+
+            if (player1_id !== undefined && card1_index !== undefined && player2_id !== undefined && card2_index !== undefined) {
+                 animateSwap(player1_id, card1_index, player2_id, card2_index, finishSwap);
+            } else {
+                finishSwap();
+            }
             break;
         case 'card_drawn':
             pendingDrawnCard = message.data.card;
@@ -384,79 +370,66 @@ function handleSocketMessage(event) {
             startAbilitySelection(pendingAbility);
             renderBoard(message.data.room, playerContext.playerId);
             break;
+        case 'card_being_looked_at':
+            const { player_id: looking_pid, target_player_id: t_pid, card_index: c_idx, duration: look_dur } = message.data;
+            if (looking_pid === playerContext.playerId) return;
+
+            const lookedBtn = findCardElement(t_pid, c_idx, latestRoomState, playerContext.playerId);
+            if (lookedBtn) {
+                lookedBtn.classList.add('being-looked-at');
+                setTimeout(() => {
+                    lookedBtn.classList.remove('being-looked-at');
+                }, look_dur || 3000);
+                
+                const pName = latestRoomState.players.find(p => p.player_id === looking_pid)?.username || 'Someone';
+                notify(`${pName} is looking at a card...`, 2000);
+            }
+            break;
         case 'ability_resolution':
             const { ability, card, card_index, target_player_id, duration, first, second } = message.data;
+            const dur = duration || 3000;
 
-            if (ability === 'peek_self' && playerContext.playerId === target_player_id) {
-                const text = `You peeked at your card #${card_index + 1}: ${formatCard(card)}`;
-                notify(text, duration || 5000);
-                
-                const cardContainer = document.getElementById('card-container');
-                if (cardContainer && cardContainer.children[card_index]) {
-                    const cardButton = cardContainer.children[card_index];
-                    const originalText = cardButton.innerText; // "Card Back"
-                    
-                    cardButton.innerText = formatCard(card);
-                    cardButton.classList.add('revealed');
-
+            const animateReveal = (pid, idx, cardData) => {
+                const btn = findCardElement(pid, idx, latestRoomState, playerContext.playerId);
+                if (btn) {
+                    btn.classList.add('flipping-out');
                     setTimeout(() => {
-                        cardButton.innerText = originalText;
-                        cardButton.classList.remove('revealed');
-                    }, duration || 5000);
-                }
-            } else if (ability === 'peek_other') {
-                if (latestRoomState) {
-                    const targetPlayer = latestRoomState.players.find(p => p.player_id === target_player_id);
-                    const targetUsername = targetPlayer ? targetPlayer.username : 'another player';
-                    const text = `You see ${targetUsername}'s card #${card_index + 1}: ${formatCard(card)}`;
-                    notify(text, duration || 5000);
-                    alert(text); // Also show alert for explicit visibility
-                }
-            } else if (ability === 'look_and_swap' && first && second) {
-                // Reveal the cards visually
-                const revealCard = (pid, idx, c) => {
-                    const selector = pid === playerContext.playerId 
-                        ? `#card-container > button:nth-child(${idx + 1})`
-                        : `#opponents-container .opponent-hand:has(.opponent-name:contains('${latestRoomState.players.find(p => p.player_id === pid)?.username}')) .opponent-cards button:nth-child(${idx + 1})`;
-                    
-                    // Simple logic for finding the button. For opponents, it's tricky with :contains, let's just use index if we can find the player section.
-                    let btn = null;
-                    if (pid === playerContext.playerId) {
-                         const container = document.getElementById('card-container');
-                         if (container) btn = container.children[idx];
-                    } else {
-                        // Find opponent section
-                        const oppContainer = document.getElementById('opponents-container');
-                        if (oppContainer) {
-                            const oppIndex = latestRoomState.players.filter(p => p.player_id !== playerContext.playerId).findIndex(p => p.player_id === pid);
-                            if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
-                                const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
-                                if (cardsDiv) btn = cardsDiv.children[idx];
-                            }
-                        }
-                    }
+                        btn.classList.remove('flipping-out');
+                        renderCardContent(btn, cardData);
+                        btn.classList.add('flipping-in');
 
-                    if (btn) {
-                        const originalText = btn.innerText;
-                        btn.innerText = formatCard(c);
-                        btn.classList.add('revealed');
                         setTimeout(() => {
-                            btn.innerText = originalText;
-                            btn.classList.remove('revealed');
-                        }, 5000);
-                    }
-                };
+                            btn.classList.remove('flipping-in');
+                            btn.classList.add('flipping-out');
 
-                revealCard(first.player_id, first.card_index, first.card);
-                revealCard(second.player_id, second.card_index, second.card);
+                            setTimeout(() => {
+                                btn.classList.remove('flipping-out');
+                                btn.innerHTML = '';
+                                btn.innerText = '🂠';
+                                btn.className = '';
+                                btn.style.background = '';
+                                btn.classList.add('flipping-in');
+                                setTimeout(() => btn.classList.remove('flipping-in'), 300);
+                            }, 300);
+                        }, dur);
+                    }, 300);
+                }
+            };
 
-                // Show swap decision UI
+            if (ability === 'peek_self' || ability === 'peek_other') {
+                animateReveal(target_player_id, card_index, card);
+                const targetName = latestRoomState.players.find(p => p.player_id === target_player_id)?.username || 'Unknown';
+                notify(`You peeked at ${targetName}'s card #${card_index + 1}: ${formatCard(card)}`, dur);
+            } else if (ability === 'look_and_swap' && first && second) {
                 pendingSwapDecision = true;
+                renderBoard(latestRoomState, playerContext.playerId);
+
+                animateReveal(first.player_id, first.card_index, first.card);
+                animateReveal(second.player_id, second.card_index, second.card);
+
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
-                notify(`You saw: ${formatCard(first.card)} (${p1.username}) and ${formatCard(second.card)} (${p2.username})`);
-                
-                renderBoard(latestRoomState, playerContext.playerId);
+                notify(`Review cards: ${formatCard(first.card)} (${p1.username}) and ${formatCard(second.card)} (${p2.username})`, dur);
             } else {
                 notify(`Ability result: ${JSON.stringify(message.data)}`);
             }
@@ -1301,3 +1274,86 @@ window.startGame = startGame;
 window.playAgain = playAgain;
 window.skipAbility = skipAbility;
 window.toggleAdminMode = toggleAdminMode;
+
+function findCardElement(pid, idx, roomState, myPlayerId) {
+    let btn = null;
+    if (pid === myPlayerId) {
+        const container = document.getElementById('card-container');
+        if (container) {
+            const buttons = Array.from(container.children);
+            btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
+        }
+    } else {
+        const oppContainer = document.getElementById('opponents-container');
+        if (oppContainer) {
+            const allPlayers = roomState.players;
+            const opponents = allPlayers.filter(p => p.player_id !== myPlayerId);
+            const oppIndex = opponents.findIndex(p => p.player_id === pid);
+
+            if (oppIndex !== -1 && oppContainer.children[oppIndex]) {
+                const cardsDiv = oppContainer.children[oppIndex].querySelector('.opponent-cards');
+                if (cardsDiv) {
+                     const buttons = Array.from(cardsDiv.children);
+                     btn = buttons.find(b => parseInt(b.getAttribute('data-index')) === idx);
+                }
+            }
+        }
+    }
+    return btn;
+}
+
+function animateSwap(player1_id, card1_index, player2_id, card2_index, callback) {
+    // Use global latestRoomState for current DOM positions
+    const el1 = findCardElement(player1_id, card1_index, latestRoomState, playerContext.playerId);
+    const el2 = findCardElement(player2_id, card2_index, latestRoomState, playerContext.playerId);
+
+    if (!el1 || !el2) {
+        if (callback) callback();
+        return;
+    }
+
+    const rect1 = el1.getBoundingClientRect();
+    const rect2 = el2.getBoundingClientRect();
+
+    // Create clones
+    const clone1 = el1.cloneNode(true);
+    const clone2 = el2.cloneNode(true);
+
+    // Style clones
+    const styleClone = (clone, rect) => {
+        clone.classList.add('swapping-clone');
+        clone.style.top = rect.top + 'px';
+        clone.style.left = rect.left + 'px';
+        clone.style.width = rect.width + 'px';
+        clone.style.height = rect.height + 'px';
+        clone.style.margin = '0';
+        // Ensure transforms are cleared or set to identity
+        clone.style.transform = 'none';
+        document.body.appendChild(clone);
+    };
+
+    styleClone(clone1, rect1);
+    styleClone(clone2, rect2);
+
+    // Hide originals
+    el1.style.visibility = 'hidden';
+    el2.style.visibility = 'hidden';
+
+    // Force layout
+    clone1.offsetHeight;
+
+    // Animate
+    requestAnimationFrame(() => {
+        clone1.style.top = rect2.top + 'px';
+        clone1.style.left = rect2.left + 'px';
+
+        clone2.style.top = rect1.top + 'px';
+        clone2.style.left = rect1.left + 'px';
+    });
+
+    setTimeout(() => {
+        if (clone1.parentNode) document.body.removeChild(clone1);
+        if (clone2.parentNode) document.body.removeChild(clone2);
+        if (callback) callback();
+    }, 700);
+}
