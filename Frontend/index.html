@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cambio Card Game</title>
-    <style>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cambio Card Game</title>
+<style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -492,118 +493,273 @@
             pointer-events: none;
             box-shadow: 0 10px 20px rgba(0,0,0,0.4);
         }
+    
+        /* Shared Card Styles */
+        .game-card {
+            padding: 5px;
+            font-size: 14px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            width: 80px;  /* Unified width */
+            height: 120px; /* Unified height */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .game-card:hover {
+            background-color: #f5f5f5;
+            transform: translateY(-2px);
+            transition: transform 0.2s;
+        }
+        
+        /* Opponent cards specific overrides if needed (removed tiny size) */
+        .opponent-cards button {
+            /* Now using .game-card dimensions via class or shared style */
+            width: 80px !important;
+            height: 120px !important;
+            font-size: 14px; /* Ensure font size is readable if text is shown */
+        }
+
+        /* Target Selection Overlay */
+        .target-selected {
+            border-color: #00acc1 !important;
+            border-width: 3px !important;
+        }
+        .target-selected::after {
+            content: "🎯";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 5px white;
+        }
+
+        /* Deck Pile Styling */
+        #deck-pile {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #deck-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        #discard-pile {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #discard-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Call Cambio Button Position */
+        #cambio-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #call-cambio-btn {
+            background-color: #f44336; /* Red/Orange distinctive color */
+            padding: 20px 30px;
+            font-size: 20px;
+            border-radius: 50px;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+        }
+        #call-cambio-btn:hover:not(:disabled) {
+            background-color: #d32f2f;
+        }
+
+        /* Shared Card Styles */
+        .game-card {
+            padding: 5px;
+            font-size: 14px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            width: 80px;  /* Unified width */
+            height: 120px; /* Unified height */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .game-card:hover {
+            background-color: #f5f5f5;
+            transform: translateY(-2px);
+            transition: transform 0.2s;
+        }
+        
+        /* Opponent cards specific overrides if needed (removed tiny size) */
+        .opponent-cards button {
+            /* Now using .game-card dimensions via class or shared style */
+            width: 80px !important;
+            height: 120px !important;
+            font-size: 14px; /* Ensure font size is readable if text is shown */
+        }
+
+        /* Target Selection Overlay */
+        .target-selected {
+            border-color: #00acc1 !important;
+            border-width: 3px !important;
+        }
+        .target-selected::after {
+            content: "🎯";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 5px white;
+        }
+
+        /* Deck Pile Styling */
+        #deck-pile {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #deck-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        #discard-pile {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #discard-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Call Cambio Button Position */
+        #cambio-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #call-cambio-btn {
+            background-color: #f44336; /* Red/Orange distinctive color */
+            padding: 20px 30px;
+            font-size: 20px;
+            border-radius: 50px;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+        }
+        #call-cambio-btn:hover:not(:disabled) {
+            background-color: #d32f2f;
+        }
     </style>
 </head>
 <body>
-    <h1>Cambio Card Game</h1>
-    
-    <div id="lobby">
-        <h2 style="margin-top:0;">Join / Create Game</h2>
-        <input type="text" id="username" placeholder="Enter username">
-        <input type="text" id="room-id" placeholder="Room ID (leave blank to create)">
-        
-        <label for="hand-size-select" style="display:block; margin-top:10px; font-size:14px; color:#666;">Starting Hand Size (for new rooms):</label>
-        <select id="hand-size-select">
-            <option value="4" selected>4 Cards</option>
-            <option value="6">6 Cards</option>
-            <option value="8">8 Cards</option>
-        </select>
-
-        <label for="num-decks-select" style="display:block; margin-top:10px; font-size:14px; color:#666;">Number of Decks (for new rooms):</label>
-        <select id="num-decks-select">
-            <option value="1" selected>1 Deck (Standard)</option>
-            <option value="2">2 Decks (For >4 Players)</option>
-        </select>
-        
-        <div style="margin-top: 10px; text-align: left; padding: 0 10px;">
-            <label style="font-size: 14px; color: #666; cursor: pointer; display: flex; align-items: center;">
-                <input type="checkbox" id="red-king-variant" style="width: auto; margin-right: 8px;"> 
+<h1>Cambio Card Game</h1>
+<div id="lobby">
+<h2 style="margin-top:0;">Join / Create Game</h2>
+<input id="username" placeholder="Enter username" type="text"/>
+<input id="room-id" placeholder="Room ID (leave blank to create)" type="text"/>
+<label for="hand-size-select" style="display:block; margin-top:10px; font-size:14px; color:#666;">Starting Hand Size (for new rooms):</label>
+<select id="hand-size-select">
+<option selected="" value="4">4 Cards</option>
+<option value="6">6 Cards</option>
+<option value="8">8 Cards</option>
+</select>
+<label for="num-decks-select" style="display:block; margin-top:10px; font-size:14px; color:#666;">Number of Decks (for new rooms):</label>
+<select id="num-decks-select">
+<option selected="" value="1">1 Deck (Standard)</option>
+<option value="2">2 Decks (For &gt;4 Players)</option>
+</select>
+<div style="margin-top: 10px; text-align: left; padding: 0 10px;">
+<label style="font-size: 14px; color: #666; cursor: pointer; display: flex; align-items: center;">
+<input id="red-king-variant" style="width: auto; margin-right: 8px;" type="checkbox"/>
                 Red King = -2 (Variant)
             </label>
-        </div>
-
-        <button onclick="handleJoin()" style="margin-top:15px;">Join Game</button>
-        <a href="/rules.pdf" target = "_blank" style="display:block; margin-top:10px; color:#4CAF50; text-decoration:none; font-weight:bold;">How to Play</a>
-        <a href="https://buy.stripe.com/14A6oJ0KJcPg2nYb14dwc01" target="_blank" class="coffee-button">Buy me a coffee ☕</a>
-        <p id="status"></p>
-    </div>
-
-    <div id="game-board" style="display:none">
-        <div id="room-info">
-            <div>
-                <strong>Room ID:</strong> <span id="room-id-display">-</span>
-                <span style="margin-left: 15px; font-size: 14px;">Share this ID with other players to join your game</span>
-            </div>
-            <button id="copy-room-id" onclick="copyRoomId()">Copy Room ID</button>
-            <div style="margin-left: 20px;">
-                <label style="color: white; cursor: pointer;">
-                    <input type="checkbox" id="admin-mode-toggle" onchange="toggleAdminMode()"> Admin Mode
+</div>
+<button onclick="handleJoin()" style="margin-top:15px;">Join Game</button>
+<a href="/rules.pdf" style="display:block; margin-top:10px; color:#4CAF50; text-decoration:none; font-weight:bold;" target="_blank">How to Play</a>
+<a class="coffee-button" href="https://buy.stripe.com/14A6oJ0KJcPg2nYb14dwc01" target="_blank">Buy me a coffee ☕</a>
+<p id="status"></p>
+</div>
+<div id="game-board" style="display:none">
+<div id="room-info">
+<div>
+<strong>Room ID:</strong> <span id="room-id-display">-</span>
+<span style="margin-left: 15px; font-size: 14px;">Share this ID with other players to join your game</span>
+</div>
+<button id="copy-room-id" onclick="copyRoomId()">Copy Room ID</button>
+<div style="margin-left: 20px;">
+<label style="color: white; cursor: pointer;">
+<input id="admin-mode-toggle" onchange="toggleAdminMode()" type="checkbox"/> Admin Mode
                 </label>
-            </div>
-        </div>
-        
-        <div id="player-list">
-            <h3>Players</h3>
-        </div>
-        
-        <button id="start-game-btn" onclick="startGame()" style="display:none;">Start Game</button>
-        <h2 id="turn-indicator">Waiting for players...</h2>
-
-        <div class="game-area">
-            <div id="opponents-hands">
-                <h3 style="color:white; margin-top:0;">Other Players</h3>
-                <div id="opponents-container"></div>
-            </div>
-
-            <div id="play-area">
-                <div id="discard-pile">
-                    <h3>Discard Pile</h3>
-                    <div id="top-card"></div>
-                </div>
-                 <!-- Could add Deck graphic here later -->
-            </div>
-
-            <div id="my-hand">
-                <h3 style="margin-top:0;">Your Hand</h3>
-                
-                <div id="viewing-countdown" style="display:none; font-size: 48px; text-align: center; margin: 10px 0; color: #FF9800; text-shadow: 2px 2px 4px #000;"></div>
-                
-                <div id="draw-choice-panel" style="display:none; padding: 15px; background: #fff3e0; border-radius: 8px; margin: 15px 0; border: 2px solid #ff9800; color: #333;">
-                    <p><strong>You drew:</strong> <span id="drawn-card-display"></span></p>
-                    <p>Swap with a hand card (any card), or discard to pile:</p>
-                    <button id="discard-drawn-btn" onclick="resolveDraw('discard')">Discard to pile</button>
-                </div>
-                
-                <div id="ability-panel" style="display:none; padding: 15px; background: #e0f7fa; border-radius: 8px; margin: 15px 0; border: 2px solid #00acc1; color: #333;">
-                    <p><strong>Ability Available:</strong> <span id="ability-name-display"></span></p>
-                    <p id="ability-desc">Do you want to use this ability?</p>
-                    <div id="ability-controls"></div>
-                    <button onclick="skipAbility()" style="margin-top: 10px; background-color: #78909c;">Skip Ability</button>
-                </div>
-
-                <div class="action-buttons">
-                    <button id="draw-card-btn" onclick="drawCard()">Draw from Deck</button>
-                    <button id="draw-discard-btn" onclick="drawFromDiscard()">Draw from Discard</button>
-                    <button id="call-cambio-btn" onclick="callCambio()">Call Cambio</button>
-                </div>
-                
-                <div id="card-container"></div>
-            </div>
-        </div>
-        
-        <!-- Game Over Modal -->
-        <div id="game-over-modal">
-            <div class="modal-content">
-                <span class="close-modal" onclick="document.getElementById('game-over-modal').style.display='none'">&times;</span>
-                <h2 id="game-over-title">Game Over!</h2>
-                <div id="game-over-results"></div>
-                <button id="modal-play-again-btn" onclick="playAgain()" style="background-color: #4CAF50; padding: 15px 30px; font-size: 18px; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px;">Play Again</button>
-            </div>
-        </div>
-
-        <div id="notifications"></div>
-    </div>
-
-    <script src="bridge.js"></script>
+</div>
+</div>
+<div id="player-list">
+<h3>Players</h3>
+</div>
+<button id="start-game-btn" onclick="startGame()" style="display:none;">Start Game</button>
+<h2 id="turn-indicator">Waiting for players...</h2>
+<div class="game-area">
+<div id="opponents-hands">
+<h3 style="color:white; margin-top:0;">Other Players</h3>
+<div id="opponents-container"></div>
+</div>
+<div id="play-area"><div id="discard-pile">
+<h3>Discard Pile</h3>
+<div id="top-card"></div>
+</div><div id="deck-pile"><h3>Deck</h3><div class="card-back game-card" id="deck-card">🂠</div></div><div id="cambio-container"><button id="call-cambio-btn" onclick="callCambio()">Call Cambio</button></div></div>
+<div id="my-hand">
+<h3 style="margin-top:0;">Your Hand</h3>
+<div id="viewing-countdown" style="display:none; font-size: 48px; text-align: center; margin: 10px 0; color: #FF9800; text-shadow: 2px 2px 4px #000;"></div>
+<div id="draw-choice-panel" style="display:none; padding: 15px; background: #fff3e0; border-radius: 8px; margin: 15px 0; border: 2px solid #ff9800; color: #333;">
+<p><strong>You drew:</strong> <span id="drawn-card-display"></span></p>
+<p>Swap with a hand card (any card), or discard to pile:</p>
+<button id="discard-drawn-btn" onclick="resolveDraw('discard')">Discard to pile</button>
+</div>
+<div id="ability-panel" style="display:none; padding: 15px; background: #e0f7fa; border-radius: 8px; margin: 15px 0; border: 2px solid #00acc1; color: #333;">
+<p><strong>Ability Available:</strong> <span id="ability-name-display"></span></p>
+<p id="ability-desc">Do you want to use this ability?</p>
+<div id="ability-controls"></div>
+<button onclick="skipAbility()" style="margin-top: 10px; background-color: #78909c;">Skip Ability</button>
+</div>
+<div class="action-buttons">
+</div>
+<div id="card-container"></div>
+</div>
+</div>
+<!-- Game Over Modal -->
+<div id="game-over-modal">
+<div class="modal-content">
+<span class="close-modal" onclick="document.getElementById('game-over-modal').style.display='none'">×</span>
+<h2 id="game-over-title">Game Over!</h2>
+<div id="game-over-results"></div>
+<button id="modal-play-again-btn" onclick="playAgain()" style="background-color: #4CAF50; padding: 15px 30px; font-size: 18px; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px;">Play Again</button>
+</div>
+</div>
+<div id="notifications"></div>
+</div>
+<script src="bridge.js"></script>
 </body>
 </html>

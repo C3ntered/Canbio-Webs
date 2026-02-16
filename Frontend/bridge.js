@@ -310,6 +310,9 @@ function handleSocketMessage(event) {
             }
             break;
         }
+        case 'decision_notification':
+             notify(message.data.message);
+             // Fall through
         case 'game_started':
         case 'round_started':
         case 'turn_ended':
@@ -337,8 +340,13 @@ function handleSocketMessage(event) {
             const { player1_id, card1_index, player2_id, card2_index } = message.data;
 
             const finishSwap = () => {
-                latestRoomState = message.data.room;
-                renderBoard(message.data.room, playerContext.playerId);
+                // Only update state if the incoming message is not stale compared to current state
+                if (!latestRoomState || !latestRoomState.game_state ||
+                    message.data.room.game_state.turn_number >= latestRoomState.game_state.turn_number) {
+                    latestRoomState = message.data.room;
+                }
+                // Always render the LATEST state
+                renderBoard(latestRoomState, playerContext.playerId);
 
                 // Highlight swapped cards
                 const highlight = (pid, idx) => {
@@ -480,10 +488,14 @@ function handleSocketMessage(event) {
                 notify(`You peeked at ${targetName}'s card #${card_index + 1}: ${formatCard(card)}`, dur);
             } else if (ability === 'look_and_swap' && first && second) {
                 pendingSwapDecision = true;
-                renderBoard(latestRoomState, playerContext.playerId);
+                // Add cards to activeLookIndicators with 'PERSIST' duration
+                if (!activeLookIndicators[first.player_id]) activeLookIndicators[first.player_id] = {};
+                activeLookIndicators[first.player_id][first.card_index] = 'PERSIST';
 
-                animateReveal(first.player_id, first.card_index, first.card);
-                animateReveal(second.player_id, second.card_index, second.card);
+                if (!activeLookIndicators[second.player_id]) activeLookIndicators[second.player_id] = {};
+                activeLookIndicators[second.player_id][second.card_index] = 'PERSIST';
+
+                renderBoard(latestRoomState, playerContext.playerId);
 
                 const p1 = latestRoomState.players.find(p => p.player_id === first.player_id);
                 const p2 = latestRoomState.players.find(p => p.player_id === second.player_id);
@@ -574,7 +586,9 @@ function completeElimination(replacementCardIndex) {
 }
 
 function callCambio() {
-    sendMessage('call_cambio');
+    if (confirm('Are you sure you want to Call Cambio? This will end your turn and trigger the final round.')) {
+        sendMessage('call_cambio');
+    }
 }
 
 function startGame() {
@@ -588,6 +602,15 @@ function playAgain() {
 function resolveSwapDecision(doSwap) {
     sendMessage('resolve_swap_decision', { swap: doSwap });
     pendingSwapDecision = false;
+    // Clear persistent look indicators
+    for (const pid in activeLookIndicators) {
+        for (const idx in activeLookIndicators[pid]) {
+            if (activeLookIndicators[pid][idx] === 'PERSIST') {
+                delete activeLookIndicators[pid][idx];
+            }
+        }
+    }
+    renderBoard(latestRoomState, playerContext.playerId); // Re-render to hide cards
     const panel = document.getElementById('ability-panel');
     if (panel) panel.style.display = 'none';
 }
@@ -629,6 +652,7 @@ function handleCardClick(playerId, cardIndex, isOwnCard) {
     
     // Add target
     selectedTargets.push({ player_id: playerId, card_index: cardIndex });
+    renderBoard(latestRoomState, playerContext.playerId); // Update UI
     
     // Check if we have enough targets
     if (pendingAbility === 'peek_self') {
@@ -818,6 +842,8 @@ function renderBoard(room, yourPlayerId) {
 
     // Only show game elements when game is playing (or in viewing phase for cards)
     const discardPileContainer = document.getElementById('discard-pile');
+    const deckPileContainer = document.getElementById('deck-pile');
+    const cambioContainer = document.getElementById('cambio-container');
     const myHandContainer = document.getElementById('my-hand');
     const opponentsHandsContainer = document.getElementById('opponents-hands');
     const actionButtons = document.querySelector('.action-buttons');
@@ -830,6 +856,8 @@ function renderBoard(room, yourPlayerId) {
     
     if (isPlaying) {
         if (discardPileContainer) discardPileContainer.style.display = isViewingPhase ? 'none' : 'block';
+        if (deckPileContainer) deckPileContainer.style.display = isViewingPhase ? 'none' : 'block';
+        if (cambioContainer) cambioContainer.style.display = isViewingPhase ? 'none' : 'block';
         if (myHandContainer) myHandContainer.style.display = 'block';
         if (opponentsHandsContainer) opponentsHandsContainer.style.display = isViewingPhase ? 'none' : 'block';
         if (actionButtons) actionButtons.style.display = isViewingPhase ? 'none' : 'flex';
@@ -1024,7 +1052,7 @@ function renderBoard(room, yourPlayerId) {
                         // Generalize: Bottom row is indices [N/2, N-1]
                         const half = Math.ceil(me.hand.length / 2);
                         const isBottomCard = index >= half;
-                        const isVisible = (isViewingPhase && isBottomCard) || adminMode;
+                        const isVisible = (isViewingPhase && isBottomCard) || adminMode || (activeLookIndicators[yourPlayerId] && activeLookIndicators[yourPlayerId][index] === "PERSIST");
                         
                         // Clear old classes
                         btn.classList.remove('card-back', 'card-red', 'card-black', 'card-special-king');
@@ -1110,13 +1138,14 @@ function renderBoard(room, yourPlayerId) {
                         btn.style.background = "transparent";
                         btn.style.cursor = "default";
                     } else {
-                        if (adminMode) {
-                            btn.innerText = formatCard(card);
-                            btn.style.background = "#e3f2fd";
-                            btn.style.color = "#000";
-                            btn.style.fontSize = "14px";
+const isRevealed = (activeLookIndicators[player.player_id] && activeLookIndicators[player.player_id][index] === "PERSIST");
+                        if (adminMode || isRevealed) {
+                            renderCardContent(btn, card);
+                            btn.style.backgroundColor = "white";
+                            btn.classList.remove('card-back');
                         } else {
                             btn.innerText = '🂠';
+                            btn.classList.add('card-back');
                         }
                         btn.title = !mustResolveDraw ? `Try to eliminate ${player.username}'s card #${index + 1} (must match discard)` : (mustResolveDraw ? 'Resolve your drawn card first' : 'Face down');
                     }
@@ -1152,9 +1181,25 @@ function renderBoard(room, yourPlayerId) {
         }
     } else {
         if (discardPileContainer) discardPileContainer.style.display = 'none';
+        if (deckPileContainer) deckPileContainer.style.display = 'none';
+        if (cambioContainer) cambioContainer.style.display = 'none';
         if (myHandContainer) myHandContainer.style.display = 'none';
         if (opponentsHandsContainer) opponentsHandsContainer.style.display = 'none';
     }
+        // Deck/Discard Handlers
+    const deckPile = document.getElementById('deck-pile');
+    if (deckPile) {
+        deckPile.onclick = () => {
+             drawCard();
+        };
+    }
+    const discardPile = document.getElementById('discard-pile');
+    if (discardPile) {
+        discardPile.onclick = () => {
+             drawFromDiscard();
+        };
+    }
+
     applyIndicators();
 }
 
@@ -1174,7 +1219,7 @@ function getSuitSymbol(suit) {
         case 'Diamonds': return '♦';
         case 'Clubs': return '♣';
         case 'Spades': return '♠';
-        case 'Joker': return '★';
+        case 'Joker': return '🃏';
         default: return '?';
     }
 }

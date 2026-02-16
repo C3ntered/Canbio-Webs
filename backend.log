@@ -1,0 +1,20 @@
+INFO:     Started server process [8369]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:33622 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33622 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33622 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33628 - "WebSocket /ws/9f06a607" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     127.0.0.1:33630 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33630 - "GET /bridge.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33630 - "POST /api/rooms HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33646 - "WebSocket /ws/e7a3c88d" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [8369]

@@ -59,6 +59,13 @@ async def get_rules_pdf():
         return FileResponse(pdf_path, media_type="application/pdf")
     return {"error": "File not found", "path": pdf_path}
 
+@app.get("/bridge.js")
+async def get_bridge_js():
+    js_path = os.path.join(frontend_dir, "bridge.js")
+    if os.path.exists(js_path):
+        return FileResponse(js_path, media_type="application/javascript")
+    return {"error": "File not found"}
+
 app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 
 # ============================================================================
@@ -1287,6 +1294,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                                 }
                             })
                 
+                else:
+                    room = room_manager.get_room(room_id)
+                    await room_manager.broadcast_to_room(room_id, {
+                        "type": "decision_notification",
+                        "data": {
+                            "message": f"{player.username} chose not to swap.",
+                            "room": room.model_dump(mode="json")
+                        }
+                    })
+
                 # Clear state and end turn
                 player.pending_ability = None
                 player.pending_swap_targets = None
@@ -1400,6 +1417,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "type": "cambio_called",
                     "data": {
                         "player_id": player_id,
+                        "message": f"{player.username} called Cambio!",
                         "room": room.model_dump(mode='json')
                     }
                 })
