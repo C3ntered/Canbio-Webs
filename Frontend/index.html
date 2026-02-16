@@ -202,6 +202,10 @@
             width: 100%;
         }
         .opponent-hand {
+            margin: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             background: rgba(255, 255, 255, 0.8);
             padding: 10px;
             border-radius: 8px;
@@ -239,7 +243,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 40px;
+            gap: 20px;
             padding: 20px;
         }
         
@@ -306,8 +310,8 @@
             border-radius: 8px;
             background-color: white;
             cursor: pointer;
-            min-height: 120px;
-            min-width: 80px;
+            min-height: 140px;
+            min-width: 100px;
             width: 100%;
             box-sizing: border-box;
             display: flex;
@@ -683,7 +687,8 @@
     }
     
     #sidebar {
-        width: 280px;
+        width: 220px;
+        
         background: rgba(0, 0, 0, 0.2);
         padding: 20px;
         display: flex;
@@ -710,10 +715,10 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: center;
         padding: 10px;
         overflow-y: auto;
-        gap: 10px;
+        gap: 20px;
     }
 
     /* Opponent area improvements */
@@ -728,9 +733,9 @@
     
     #opponents-container {
         display: flex;
-        flex-wrap: nowrap; /* Horizontal scroll if many players */
+        flex-wrap: wrap; /* Horizontal scroll if many players */
         gap: 20px;
-        justify-content: flex-start; /* Start align for scroll */
+        justify-content: center; /* Start align for scroll */
         padding-bottom: 5px;
     }
 
@@ -740,9 +745,9 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        gap: 40px;
+        gap: 20px;
         padding: 10px;
-        min-height: 200px; /* Ensure space */
+        min-height: auto; /* Ensure space */
     }
 
     /* My Hand (Bottom) */
