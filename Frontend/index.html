@@ -441,6 +441,151 @@
             #my-hand { padding: 5px; }
             #ability-panel { bottom: 100px; }
         }
+    
+    /* Sidebar Layout */
+    #game-container {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        overflow: hidden;
+    }
+    
+    #sidebar {
+        width: 280px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        color: white;
+        overflow-y: auto;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(5px);
+        flex-shrink: 0;
+    }
+    
+    #main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Adjust game area to flex vertically */
+    .game-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 10px;
+        overflow-y: auto;
+        gap: 10px;
+    }
+
+    /* Opponent area improvements */
+    #opponents-hands {
+        flex: 0 0 auto;
+        padding: 10px;
+        background: rgba(0,0,0,0.1);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        overflow-x: auto;
+    }
+    
+    #opponents-container {
+        display: flex;
+        flex-wrap: nowrap; /* Horizontal scroll if many players */
+        gap: 20px;
+        justify-content: flex-start; /* Start align for scroll */
+        padding-bottom: 5px;
+    }
+
+    /* Play Area (Middle) */
+    #play-area {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 40px;
+        padding: 10px;
+        min-height: 200px; /* Ensure space */
+    }
+
+    /* My Hand (Bottom) */
+    #my-hand {
+        flex: 0 0 auto;
+        padding: 10px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 12px 12px 0 0;
+    }
+
+    /* Fix Peek Visuals: Add padding to opponent cards */
+    .opponent-cards button {
+        padding: 5px !important; /* Match .game-card padding */
+        box-sizing: border-box; /* Should already be inherited but safe to add */
+    }
+    
+    /* Ensure Turn Indicator is visible */
+    #turn-indicator {
+        text-align: center;
+        margin: 10px 0;
+        color: white;
+        text-shadow: 1px 1px 3px black;
+    }
+
+    /* Adjust responsive behavior for sidebar */
+    @media (max-width: 768px) {
+        #game-container {
+            flex-direction: column;
+        }
+        #sidebar {
+            width: 100%;
+            height: auto;
+            max-height: 200px;
+            flex-direction: row;
+            flex-wrap: wrap;
+        }
+    }
+
+    /* Force opponent cards to match player cards exactly */
+    .opponent-cards button {
+        width: 80px !important;
+        height: 120px !important;
+        padding: 5px !important;
+        border: 2px solid #333 !important;
+        border-radius: 8px !important;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2) !important;
+        font-size: 14px !important;
+        box-sizing: border-box !important;
+        /* Reset background so inline style or .card-back works */
+        background-color: transparent; 
+    }
+    
+    /* Ensure card back gradient works when hidden */
+    .opponent-cards button.card-back {
+        background: linear-gradient(135deg, #1565C0 25%, #1976D2 25%, #1976D2 50%, #1565C0 50%, #1565C0 75%, #1976D2 75%, #1976D2 100%) !important;
+        background-size: 20px 20px !important;
+        /* Ensure text is transparent if we rely on pseudo-element or innerText for emoji */
+        color: transparent !important;
+    }
+
+    /* Ensure text color is visible when revealed (not card-back) */
+    .opponent-cards button:not(.card-back) {
+        background-color: white !important;
+        background-image: none !important;
+        color: black !important;
+    }
+    
+    /* Ensure the 🂠 emoji shows up on card back */
+    .opponent-cards button.card-back::after {
+        content: "🂠";
+        color: white;
+        font-size: 40px;
+        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        display: block;
+    }
     </style>
 </head>
 <body>
