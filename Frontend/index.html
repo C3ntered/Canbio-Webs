@@ -89,6 +89,13 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
+
+            /* Zoom out 15% */
+            zoom: 0.85;
+            -moz-transform: scale(0.85);
+            -moz-transform-origin: top center;
+            /* Compensate width for Firefox transform scaling */
+            /* Note: This is an approximation as transform doesn't reflow the container width */
         }
         
         #room-info {
