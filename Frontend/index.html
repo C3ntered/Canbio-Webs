@@ -678,29 +678,110 @@
             background-color: #d32f2f;
         }
     
-    /* Sidebar Layout */
+            /* Header/Sidebar Layout */
     #game-container {
         display: flex;
-        height: 100vh;
-        width: 100vw;
+        flex-direction: column; /* Stack header and game */
+        height: calc(100vh - 40px); /* Fit within viewport minus padding */
+        width: 100%;
         overflow: hidden;
     }
     
     #sidebar {
-        width: 220px;
-        
-        background: rgba(0, 0, 0, 0.2);
-        padding: 20px;
+        width: 100%;
+        background: transparent;
+        padding: 0 0 10px 0; /* Reduced padding, rely on container */
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 10px;
         color: white;
-        overflow-y: auto;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(5px);
         flex-shrink: 0;
+        box-sizing: border-box;
+    }
+
+    #room-info {
+        background-color: #1b5e20; /* Dark green header */
+        color: white;
+        padding: 10px 20px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    #room-id-display {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: monospace;
+        background: rgba(255,255,255,0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    #copy-room-id {
+        background-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.4);
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+    #copy-room-id:hover {
+        background-color: rgba(255, 255, 255, 0.3);
     }
     
+    #player-list {
+        background-color: white; /* White box */
+        color: #333;
+        padding: 10px 20px;
+        border-radius: 4px;
+        margin: 0;
+        width: 100%;
+        box-sizing: border-box;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    #player-list h3 {
+        margin: 0 0 5px 0;
+        font-size: 16px;
+        color: #333;
+    }
+    #player-list ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    #player-list li {
+        padding: 5px 12px;
+        background-color: #e0e0e0;
+        border-radius: 15px;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        color: #333;
+    }
+
+    #start-game-btn {
+        background-color: #FF9800;
+        color: white;
+        padding: 15px 30px;
+        font-size: 20px;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        width: 100%;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    #start-game-btn:hover:not(:disabled) {
+        background-color: #F57C00;
+    }
+
     #main-content {
         flex: 1;
         display: flex;
@@ -715,7 +796,7 @@
         flex: 1;
         display: flex;
         flex-direction: column;
-        justify-content: center;
+        justify-content: flex-start;
         padding: 10px;
         overflow-y: auto;
         gap: 20px;
@@ -729,6 +810,8 @@
         border-radius: 8px;
         margin-bottom: 10px;
         overflow-x: auto;
+        width: 100%;
+        box-sizing: border-box;
     }
     
     #opponents-container {
@@ -772,19 +855,7 @@
         text-shadow: 1px 1px 3px black;
     }
 
-    /* Adjust responsive behavior for sidebar */
-    @media (max-width: 768px) {
-        #game-container {
-            flex-direction: column;
-        }
-        #sidebar {
-            width: 100%;
-            height: auto;
-            max-height: 200px;
-            flex-direction: row;
-            flex-wrap: wrap;
-        }
-    }
+
 
     /* Force opponent cards to match player cards exactly */
     .opponent-cards button {

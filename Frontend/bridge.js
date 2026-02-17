@@ -749,9 +749,11 @@ function renderBoard(room, yourPlayerId) {
     latestRoomState = room;
     const lobby = document.getElementById('lobby');
     const board = document.getElementById('game-board');
+    const title = document.querySelector('h1');
     if (lobby && board) {
         lobby.style.display = 'none';
         board.style.display = 'block';
+        if (title) title.style.display = 'none';
     }
 
     // Update room ID display
