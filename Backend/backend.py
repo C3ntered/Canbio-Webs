@@ -29,7 +29,7 @@ async def lifespan(app):
         while True:
             await asyncio.sleep(10 * 60)  # Run every 10 minutes
             try:
-                room_manager.cleanup_stale_rooms()
+                await room_manager.cleanup_stale_rooms()
             except Exception as e:
                 print(f"[Cleanup] Error during cleanup: {e}")
 
@@ -379,13 +379,14 @@ class GameRoomManager:
         if room:
             room.last_activity = datetime.now()
 
-    def cleanup_stale_rooms(self):
+    async def cleanup_stale_rooms(self):
         """
         Delete rooms that have been inactive too long.
+        Broadcasts a warning to connected players before closing.
         Thresholds:
+          - PLAYING rooms:                           30 minutes inactivity (any move resets timer)
           - WAITING rooms with no connected players: 30 minutes
           - WAITING rooms with connected players:    2 hours
-          - PLAYING rooms with no connected players: 1 hour
           - FINISHED rooms:                          15 minutes
         """
         now = datetime.now()
@@ -396,21 +397,34 @@ class GameRoomManager:
             connected = sum(1 for p in room.players if p.is_connected)
 
             if room.status == GameStatus.FINISHED and age > 15 * 60:
-                to_delete.append(room_id)
+                to_delete.append((room_id, "game_finished"))
+            elif room.status == GameStatus.PLAYING and age > 30 * 60:
+                to_delete.append((room_id, "inactivity"))
             elif room.status == GameStatus.WAITING and connected == 0 and age > 30 * 60:
-                to_delete.append(room_id)
+                to_delete.append((room_id, "empty_lobby"))
             elif room.status == GameStatus.WAITING and age > 2 * 60 * 60:
-                to_delete.append(room_id)
-            elif room.status == GameStatus.PLAYING and connected == 0 and age > 60 * 60:
-                to_delete.append(room_id)
+                to_delete.append((room_id, "inactivity"))
 
-        for room_id in to_delete:
+        for room_id, reason in to_delete:
+            # Notify connected players before closing
+            reason_messages = {
+                "inactivity": "Room closed due to 30 minutes of inactivity. The game state has been cleared.",
+                "empty_lobby": "Lobby closed — no players were connected for 30 minutes.",
+                "game_finished": "Room closed after game ended.",
+            }
+            await self.broadcast_to_room(room_id, {
+                "type": "server_closing",
+                "data": {
+                    "reason": reason,
+                    "message": reason_messages.get(reason, "Room closed.")
+                }
+            })
             self.rooms.pop(room_id, None)
             self.room_connections.pop(room_id, None)
-            print(f"[Cleanup] Deleted stale room {room_id}")
+            print(f"[Cleanup] Deleted room {room_id} (reason: {reason})")
 
         if to_delete:
-            print(f"[Cleanup] Removed {len(to_delete)} stale room(s). Active rooms: {len(self.rooms)}")
+            print(f"[Cleanup] Removed {len(to_delete)} room(s). Active rooms: {len(self.rooms)}")
     
     async def broadcast_to_room(self, room_id: str, message: dict, exclude_player: Optional[str] = None):
         """Broadcast message to all players in a room"""

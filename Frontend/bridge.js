@@ -136,7 +136,12 @@ function setupWebSocket(roomId, playerId) {
     });
 
     socket.addEventListener('message', handleSocketMessage);
-    socket.addEventListener('close', () => updateStatus('Disconnected'));
+    socket.addEventListener('close', () => {
+        // Only show disconnected if not already showing a server_closing modal
+        if (!document.getElementById('server-closing-modal')) {
+            updateStatus('Disconnected');
+        }
+    });
     socket.addEventListener('error', () => updateStatus('Connection error'));
 }
 
@@ -521,6 +526,9 @@ function handleSocketMessage(event) {
             } else if (latestRoomState) {
                 renderBoard(latestRoomState, playerContext.playerId);
             }
+            break;
+        case 'server_closing':
+            showServerClosingModal(message.data.reason, message.data.message);
             break;
         case 'error':
             // Auto-recover from state mismatch if backend says "No pending drawn card"
@@ -1261,6 +1269,56 @@ function renderCardContent(element, card) {
     bottomDiv.className = 'card-corner-bottom';
     bottomDiv.innerHTML = `<span>${rankShort}</span><span>${symbol}</span>`;
     element.appendChild(bottomDiv);
+}
+
+function showServerClosingModal(reason, message) {
+    // Remove any existing modal
+    const existing = document.getElementById('server-closing-modal');
+    if (existing) existing.remove();
+
+    const reasonTitles = {
+        inactivity: '⏱️ Room Closed — Inactivity',
+        empty_lobby: '🚪 Lobby Closed',
+        game_finished: '✅ Room Closed',
+    };
+
+    const overlay = document.createElement('div');
+    overlay.id = 'server-closing-modal';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 2000;
+        background: rgba(0,0,0,0.85);
+        display: flex; justify-content: center; align-items: center;
+    `;
+
+    const box = document.createElement('div');
+    box.style.cssText = `
+        background: white; border-radius: 16px; padding: 40px;
+        max-width: 440px; width: 90%; text-align: center;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    `;
+
+    box.innerHTML = `
+        <h2 style="margin: 0 0 12px; font-size: 22px; color: #b71c1c;">
+            ${reasonTitles[reason] || '🔌 Room Closed'}
+        </h2>
+        <p style="color: #555; font-size: 15px; margin: 0 0 24px; line-height: 1.5;">
+            ${message}
+        </p>
+        <p style="color: #888; font-size: 13px; margin: 0 0 24px;">
+            Start a new game from the lobby to play again.
+        </p>
+        <button onclick="location.reload()" style="
+            background: #4CAF50; color: white; border: none;
+            padding: 14px 32px; border-radius: 8px; font-size: 16px;
+            font-weight: bold; cursor: pointer; width: 100%;
+        ">Back to Lobby</button>
+    `;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // Close the socket cleanly
+    if (socket) { try { socket.close(); } catch(e) {} }
 }
 
 function notify(text, duration = 3000) { // Set default duration to 3000ms
