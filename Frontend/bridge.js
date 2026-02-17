@@ -1036,12 +1036,18 @@ function renderBoard(room, yourPlayerId) {
                 const isAwaitingDrawChoice = !!pendingDrawnCard;
                 
                 // Insert cards in index order 0,1,2,3...
-                // Column-flow CSS places them: [0][2][4] top row, [1][3][5] bottom row
-                // New cards always append to a new column - positions never shift
+                // We enforce visual layout: Column 1 has Index 0 (Top), Index 1 (Bottom)
+                // Column 2 has Index 2 (Top), Index 3 (Bottom), etc.
                 me.hand.forEach((card, index) => {
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
                     
+                    // Explicitly set grid position to prevent reflow issues
+                    const col = Math.floor(index / 2) + 1;
+                    const row = (index % 2) + 1;
+                    btn.style.gridColumn = col;
+                    btn.style.gridRow = row;
+
                     if (!card) {
                         // Empty slot (hole)
                         btn.innerText = "";
@@ -1122,11 +1128,17 @@ function renderBoard(room, yourPlayerId) {
                 const cardsDiv = document.createElement('div');
                 cardsDiv.className = 'opponent-cards';
                 
-                // Insert in index order - column-flow CSS handles stable placement
+                // Insert in index order - enforce column-major layout
                 player.hand.forEach((_, index) => {
                     const card = player.hand[index];
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
+
+                    // Explicitly set grid position to prevent reflow issues
+                    const col = Math.floor(index / 2) + 1;
+                    const row = (index % 2) + 1;
+                    btn.style.gridColumn = col;
+                    btn.style.gridRow = row;
                     
                     if (!card) {
                         // Empty slot
