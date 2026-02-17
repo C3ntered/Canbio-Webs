@@ -165,12 +165,15 @@
         #turn-indicator {
             background-color: rgba(33, 150, 243, 0.9);
             color: white;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
             text-align: center;
-            font-size: 1.2em;
+            font-size: 1em;
             font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            width: fit-content;
+            margin: 0 auto 10px auto;
+            align-self: center;
         }
 
         /* Game Area Grid */
@@ -392,7 +395,7 @@
             right: 20px;
             width: 300px;
             max-height: 300px;
-            overflow-y: auto;
+
             z-index: 100;
         }
         #notifications div {
@@ -682,9 +685,9 @@
     #game-container {
         display: flex;
         flex-direction: column; /* Stack header and game */
-        height: calc(100vh - 40px); /* Fit within viewport minus padding */
+        min-height: 100vh; /* Allow full page scroll */
         width: 100%;
-        overflow: hidden;
+        overflow: visible;
     }
     
     #sidebar {
@@ -788,7 +791,7 @@
         flex-direction: column;
         height: 100%;
         position: relative;
-        overflow: hidden;
+        overflow: visible;
     }
 
     /* Adjust game area to flex vertically */
@@ -798,7 +801,7 @@
         flex-direction: column;
         justify-content: flex-start;
         padding: 10px;
-        overflow-y: auto;
+
         gap: 20px;
     }
 
@@ -850,7 +853,7 @@
     /* Ensure Turn Indicator is visible */
     #turn-indicator {
         text-align: center;
-        margin: 10px 0;
+        margin: 5px auto;
         color: white;
         text-shadow: 1px 1px 3px black;
     }
@@ -937,15 +940,15 @@
 </div>
 </div><div id="player-list">
 <h3>Players</h3>
-</div><button id="start-game-btn" onclick="startGame()" style="display:none;">Start Game</button></div><div id="main-content"><h2 id="turn-indicator">Waiting for players...</h2><div class="game-area">
+</div><button id="start-game-btn" onclick="startGame()" style="display:none;">Start Game</button></div><div id="main-content"><div class="game-area">
 <div id="opponents-hands">
 <h3 style="color:white; margin-top:0;">Other Players</h3>
 <div id="opponents-container"></div>
 </div>
-<div id="play-area"><div id="discard-pile">
+<div id="play-area" style="flex-direction: column; gap: 10px;"><h2 id="turn-indicator">Waiting for players...</h2><div id="center-piles" style="display:flex; gap:20px; align-items:center; justify-content:center; flex-wrap:wrap;"><div id="discard-pile">
 <h3>Discard Pile</h3>
 <div id="top-card"></div>
-</div><div id="deck-pile"><h3>Deck</h3><div class="card-back game-card" id="deck-card">🂠</div></div><div id="cambio-container"><button id="call-cambio-btn" onclick="callCambio()">Call Cambio</button></div></div>
+</div><div id="deck-pile"><h3>Deck</h3><div class="card-back game-card" id="deck-card">🂠</div></div><div id="cambio-container"><button id="call-cambio-btn" onclick="callCambio()">Call Cambio</button></div></div></div>
 <div id="my-hand">
 <h3 style="margin-top:0;">Your Hand</h3>
 <div id="viewing-countdown" style="display:none; font-size: 48px; text-align: center; margin: 10px 0; color: #FF9800; text-shadow: 2px 2px 4px #000;"></div>
