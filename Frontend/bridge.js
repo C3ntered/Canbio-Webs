@@ -971,8 +971,8 @@ function renderBoard(room, yourPlayerId) {
                 cardDiv.style.border = "2px solid #333";
                 cardDiv.style.borderRadius = "8px";
                 cardDiv.style.backgroundColor = "white";
-                cardDiv.style.width = "80px";
-                cardDiv.style.height = "120px";
+                cardDiv.style.width = "100px";
+                cardDiv.style.height = "140px";
                 cardDiv.style.display = "flex";
                 cardDiv.style.flexDirection = "column";
                 cardDiv.style.justifyContent = "space-between";
