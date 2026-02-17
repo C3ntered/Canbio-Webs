@@ -1,6 +1,7 @@
 const GAME_STATUS = {
     WAITING: 'waiting',
     PLAYING: 'playing',
+    GRACE_PERIOD: 'grace_period',
     FINISHED: 'finished'
 };
 
@@ -189,6 +190,16 @@ function handleSocketMessage(event) {
              latestRoomState = message.data.room;
              renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
              break;
+        case 'grace_period_started':
+            notify(message.data.message);
+            latestRoomState = message.data.room;
+            renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
+            break;
+        case 'grace_period_started':
+            notify(message.data.message);
+            latestRoomState = message.data.room;
+            renderBoard(message.data.room, message.data.your_player_id || playerContext.playerId);
+            break;
         case 'game_ended':
             // Show Game Over Modal
             if (message.data.room) {
@@ -827,6 +838,23 @@ function renderBoard(room, yourPlayerId) {
         } else if (isViewingPhase) {
             turnIndicator.innerText = 'Memorize your bottom 2 cards! (5 seconds)';
             turnIndicator.style.backgroundColor = '#FF9800';
+        } else if (room.status?.toLowerCase() === GAME_STATUS.GRACE_PERIOD) {
+            turnIndicator.style.backgroundColor = '#9C27B0';
+            turnIndicator.innerHTML = 'Grace Period! Eliminate matching cards (10m) <br>';
+
+            const tallyBtn = document.createElement('button');
+            tallyBtn.id = 'tally-scores-btn';
+            tallyBtn.innerText = 'Tally Scores & End Game';
+            tallyBtn.onclick = tallyScores;
+            tallyBtn.style.backgroundColor = '#E91E63';
+            tallyBtn.style.color = 'white';
+            tallyBtn.style.border = 'none';
+            tallyBtn.style.padding = '8px 16px';
+            tallyBtn.style.borderRadius = '20px';
+            tallyBtn.style.fontWeight = 'bold';
+            tallyBtn.style.marginTop = '10px';
+            tallyBtn.style.cursor = 'pointer';
+            turnIndicator.appendChild(tallyBtn);
         } else {
             turnIndicator.style.backgroundColor = '#2196F3';
             const currentPlayer = room.players.find((p) => p.player_id === room.game_state.current_turn);
@@ -849,7 +877,7 @@ function renderBoard(room, yourPlayerId) {
     const myHandContainer = document.getElementById('my-hand');
     const opponentsHandsContainer = document.getElementById('opponents-hands');
     const actionButtons = document.querySelector('.action-buttons');
-    const isPlaying = room.status?.toLowerCase() === GAME_STATUS.PLAYING;
+    const isPlaying = room.status?.toLowerCase() === GAME_STATUS.PLAYING || room.status?.toLowerCase() === GAME_STATUS.GRACE_PERIOD;
     const isViewingPhase = room.game_state?.viewing_phase;
     
     // Hide countdown when not in viewing phase
@@ -1206,7 +1234,20 @@ const isRevealed = (activeLookIndicators[player.player_id] && activeLookIndicato
     const discardPile = document.getElementById('discard-pile');
     if (discardPile) {
         discardPile.onclick = () => {
-             drawFromDiscard();
+             if (latestRoomState) {
+                 const me = latestRoomState.players.find(p => p.player_id === playerContext.playerId);
+                 if (me && me.pending_drawn_card) {
+                     if (me.last_draw_source === 'deck') {
+                         resolveDraw('discard');
+                     } else {
+                         alert("You must swap when drawing from discard pile");
+                     }
+                 } else {
+                     drawFromDiscard();
+                 }
+             } else {
+                 drawFromDiscard();
+             }
         };
     }
 
@@ -1379,6 +1420,16 @@ async function handleJoin() {
     }
 }
 
+function tallyScores() {
+    sendMessage('tally_scores');
+}
+
+window.tallyScores = tallyScores;
+function tallyScores() {
+    sendMessage('tally_scores');
+}
+
+window.tallyScores = tallyScores;
 window.joinGame = joinGame;
 window.handleJoin = handleJoin;
 window.drawCard = drawCard;

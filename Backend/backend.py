@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 from typing import List, Dict, Optional, Set
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import random
 import json
@@ -98,6 +98,7 @@ app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
 class GameStatus(str, Enum):
     WAITING = "waiting"
     PLAYING = "playing"
+    GRACE_PERIOD = "grace_period"
     FINISHED = "finished"
 
 class Card(BaseModel):
@@ -146,6 +147,7 @@ class Room(BaseModel):
     initial_hand_size: int = 4  # Number of cards to deal per player
     red_king_variant: bool = False # If True, Red Kings are -2
     last_winner_id: Optional[str] = None
+    grace_period_end: Optional[datetime] = None
 
 class CreateRoomRequest(BaseModel):
     username: str
@@ -488,6 +490,40 @@ class GameRoomManager:
         # Store winner ID for next round
         room.last_winner_id = winner_id
     
+    def start_grace_period(self, room_id: str):
+        """Transition room to grace period state"""
+        if room_id not in self.rooms:
+            return
+
+        room = self.rooms[room_id]
+        room.status = GameStatus.GRACE_PERIOD
+        room.game_state.game_phase = "grace_period"
+        room.grace_period_end = datetime.now() + timedelta(minutes=10)
+
+    def tally_scores(self, room_id: str) -> Optional[str]:
+        """Finalize scores and end the game (transition from grace period to finished)"""
+        room = self.rooms.get(room_id)
+        if not room:
+            return None
+
+        # Calculate scores
+        for player in room.players:
+            player.score = sum(get_card_value(card, room.red_king_variant) for card in player.hand if card)
+
+        # Determine winner
+        sorted_players = sorted(
+            room.players,
+            key=lambda p: (p.score, len([c for c in p.hand if c]), 0 if p.player_id == room.game_state.cambio_caller else 1)
+        )
+
+        winner = sorted_players[0] if sorted_players else None
+        winner_id = winner.player_id if winner else None
+
+        if winner_id:
+            self.end_game(room_id, winner_id)
+
+        return winner_id
+
     def next_turn(self, room_id: str) -> Optional[str]:
         """Move to next player's turn. Returns winner_id if the round ends."""
         if room_id not in self.rooms:
@@ -518,28 +554,9 @@ class GameRoomManager:
         return None
 
     def finish_round(self, room_id: str) -> Optional[str]:
-        """Compute scores and finish the game when Cambio ends."""
-        room = self.rooms.get(room_id)
-        if not room:
-            return None
-        
-        # Calculate scores
-        for player in room.players:
-            player.score = sum(get_card_value(card, room.red_king_variant) for card in player.hand if card)
-        
-        # Determine winner: Lowest score, tie-breaker: fewest cards
-        # Sort players by score (asc), then by hand size (asc)
-        sorted_players = sorted(
-            room.players, 
-            key=lambda p: (p.score, len([c for c in p.hand if c]), 0 if p.player_id == room.game_state.cambio_caller else 1)
-        )
-        
-        winner = sorted_players[0] if sorted_players else None
-        winner_id = winner.player_id if winner else None
-        
-        if winner_id:
-            self.end_game(room_id, winner_id)
-        return winner_id
+        """Transition to grace period when round ends."""
+        self.start_grace_period(room_id)
+        return "GRACE_PERIOD"  # Return special value to indicate transition
 
     async def resolve_card_ability(self, room: Room, acting_player: Player, ability: str, payload: Dict) -> bool:
         """Execute the requested ability if the payload is valid."""
@@ -950,7 +967,7 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 card = Card(**card_data)
                 
                 # Check if game is still active
-                if room.status != GameStatus.PLAYING:
+                if room.status != GameStatus.PLAYING and room.status != GameStatus.GRACE_PERIOD:
                     await websocket.send_json({
                         "type": "error",
                         "message": "Game is not active"
@@ -1054,14 +1071,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 
                 # Check for win condition (empty hand)
                 winner_id = room_manager.check_win_condition(room_id)
-                if winner_id:
-                    room_manager.end_game(room_id, winner_id)
+                if winner_id and room.status == GameStatus.PLAYING:
+                    room_manager.start_grace_period(room_id)
                     room = room_manager.get_room(room_id)
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "game_ended",
+                        "type": "grace_period_started",
                         "data": {
-                            "winner_id": winner_id,
-                            "winner_username": next((p.username for p in room.players if p.player_id == winner_id), "Unknown"),
+                            "message": "Empty hand! Grace Period started.",
                             "room": room.model_dump(mode='json')
                         }
                     })
@@ -1250,10 +1266,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                             "type": "game_ended",
                             "data": {"winner_id": winner_id, "winner_username": next((p.username for p in room.players if p.player_id == winner_id), "Unknown"), "room": room.model_dump(mode='json')}
                         })
-                    elif cambio_winner:
+                    elif cambio_winner == "GRACE_PERIOD":
                         await room_manager.broadcast_to_room(room_id, {
-                            "type": "game_ended",
-                            "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                            "type": "grace_period_started",
+                            "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                         })
 
                 elif action == "discard":
@@ -1303,10 +1319,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                                 "type": "game_ended",
                                 "data": {"winner_id": winner_id, "winner_username": next((p.username for p in room.players if p.player_id == winner_id), "Unknown"), "room": room.model_dump(mode='json')}
                             })
-                        elif cambio_winner:
+                        elif cambio_winner == "GRACE_PERIOD":
                             await room_manager.broadcast_to_room(room_id, {
-                                "type": "game_ended",
-                                "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                                "type": "grace_period_started",
+                                "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                             })
 
             elif msg_type == "use_ability":
@@ -1332,10 +1348,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                             "type": "turn_ended",
                             "data": {"room": room.model_dump(mode='json')}
                         })
-                        if cambio_winner:
+                        if cambio_winner == "GRACE_PERIOD":
                             await room_manager.broadcast_to_room(room_id, {
-                                "type": "game_ended",
-                                "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                                "type": "grace_period_started",
+                                "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                             })
                 else:
                     await websocket.send_json({"type": "error", "message": "Invalid ability usage"})
@@ -1397,10 +1413,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "type": "turn_ended",
                     "data": {"room": room.model_dump(mode='json')}
                 })
-                if cambio_winner:
+                if cambio_winner == "GRACE_PERIOD":
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "game_ended",
-                        "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                        "type": "grace_period_started",
+                        "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                     })
             
             elif msg_type == "skip_ability":
@@ -1416,10 +1432,10 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "type": "turn_ended",
                     "data": {"room": room.model_dump(mode='json')}
                 })
-                if cambio_winner:
+                if cambio_winner == "GRACE_PERIOD":
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "game_ended",
-                        "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                        "type": "grace_period_started",
+                        "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                     })
 
             elif msg_type == "end_viewing":
@@ -1512,13 +1528,17 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "type": "turn_ended",
                     "data": {"room": room.model_dump(mode='json')}
                 })
-                if cambio_winner:
+                if cambio_winner == "GRACE_PERIOD":
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "game_ended",
-                        "data": {"winner_id": cambio_winner, "winner_username": next((p.username for p in room.players if p.player_id == cambio_winner), "Unknown"), "room": room.model_dump(mode='json')}
+                        "type": "grace_period_started",
+                        "data": {"message": "Final round ended! Grace Period started.", "room": room.model_dump(mode='json')}
                     })
             
             elif msg_type == "eliminate_card":
+                if room.status != GameStatus.PLAYING and room.status != GameStatus.GRACE_PERIOD:
+                    await websocket.send_json({"type": "error", "message": "Game not active"})
+                    continue
+
                 elimination_data = message.get("data", {})
                 target_id = elimination_data.get("target_player_id")
                 target_index = elimination_data.get("card_index")
@@ -1666,14 +1686,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 })
 
                 winner_id = room_manager.check_win_condition(room_id)
-                if winner_id:
-                    room_manager.end_game(room_id, winner_id)
+                if winner_id and room.status == GameStatus.PLAYING:
+                    room_manager.start_grace_period(room_id)
                     room = room_manager.get_room(room_id)
                     await room_manager.broadcast_to_room(room_id, {
-                        "type": "game_ended",
+                        "type": "grace_period_started",
                         "data": {
-                            "winner_id": winner_id,
-                            "winner_username": next((p.username for p in room.players if p.player_id == winner_id), "Unknown"),
+                            "message": "Empty hand! Grace Period started.",
                             "room": room.model_dump(mode='json')
                         }
                     })
@@ -1720,6 +1739,22 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "data": {
                         "room": room.model_dump(mode='json'),
                         "your_player_id": player_id
+                    }
+                })
+
+            elif msg_type == "tally_scores":
+                if room.status != GameStatus.GRACE_PERIOD:
+                    await websocket.send_json({"type": "error", "message": "Not in grace period"})
+                    continue
+
+                winner_id = room_manager.tally_scores(room_id)
+                room = room_manager.get_room(room_id)
+                await room_manager.broadcast_to_room(room_id, {
+                    "type": "game_ended",
+                    "data": {
+                        "winner_id": winner_id,
+                        "winner_username": next((p.username for p in room.players if p.player_id == winner_id), "Unknown"),
+                        "room": room.model_dump(mode='json')
                     }
                 })
 
