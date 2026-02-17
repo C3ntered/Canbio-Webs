@@ -1035,11 +1035,14 @@ function renderBoard(room, yourPlayerId) {
             if (me) {
                 const isAwaitingDrawChoice = !!pendingDrawnCard;
                 
-                // Render cards in stable index order so positions never shift
-                me.hand.forEach((_, index) => {
-                    const card = me.hand[index];
+                // Render in stable index order with explicit grid placement
+                // col = (index % 2) + 1, row = floor(index / 2) + 1
+                // This pins each card to a fixed slot regardless of hand size changes
+                me.hand.forEach((card, index) => {
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
+                    btn.style.gridColumn = (index % 2) + 1;
+                    btn.style.gridRow = Math.floor(index / 2) + 1;
                     
                     if (!card) {
                         // Empty slot (hole)
@@ -1049,9 +1052,9 @@ function renderBoard(room, yourPlayerId) {
                         btn.style.background = "transparent";
                         btn.style.cursor = "default";
                     } else {
-                        // Generalize: Bottom row is indices [N/2, N-1]
-                        const half = Math.ceil(me.hand.length / 2);
-                        const isBottomCard = index >= half;
+                        // Bottom row = row 2 = indices 2 and 3 (columns 0,1 of row 1)
+                        // With explicit grid placement: row = floor(index/2)+1, so row 2 = index >= 2
+                        const isBottomCard = Math.floor(index / 2) >= 1;
                         const isVisible = (isViewingPhase && isBottomCard) || adminMode || (activeLookIndicators[yourPlayerId] && activeLookIndicators[yourPlayerId][index] === "PERSIST");
                         
                         // Clear old classes
@@ -1122,11 +1125,13 @@ function renderBoard(room, yourPlayerId) {
                 const cardsDiv = document.createElement('div');
                 cardsDiv.className = 'opponent-cards';
                 
-                // Render in stable index order
+                // Render in stable index order with explicit grid placement
                 player.hand.forEach((_, index) => {
                     const card = player.hand[index];
                     const btn = document.createElement('button');
                     btn.setAttribute('data-index', index);
+                    btn.style.gridColumn = (index % 2) + 1;
+                    btn.style.gridRow = Math.floor(index / 2) + 1;
                     
                     if (!card) {
                         // Empty slot
