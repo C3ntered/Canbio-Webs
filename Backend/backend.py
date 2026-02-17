@@ -17,8 +17,32 @@ import os
 import asyncio
 from enum import Enum
 
+# ============================================================================
+# Background cleanup task (defined after room_manager is instantiated below)
+# ============================================================================
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app):
+    """Start background room-cleanup task on startup; cancel on shutdown."""
+    async def _cleanup_loop():
+        while True:
+            await asyncio.sleep(10 * 60)  # Run every 10 minutes
+            try:
+                room_manager.cleanup_stale_rooms()
+            except Exception as e:
+                print(f"[Cleanup] Error during cleanup: {e}")
+
+    task = asyncio.create_task(_cleanup_loop())
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
 # Initialize FastAPI app
-app = FastAPI(title="Cambio Card Game API")
+app = FastAPI(title="Cambio Card Game API", lifespan=lifespan)
 
 # Define allowed origins
 default_origins = [
@@ -115,6 +139,7 @@ class Room(BaseModel):
     game_state: GameState
     status: GameStatus = GameStatus.WAITING
     created_at: datetime
+    last_activity: datetime = None  # Updated on any player action
     max_players: int = 4
     min_players: int = 2
     num_decks: int = 1  # Number of decks to use (auto-calculated if >5 players)
@@ -193,6 +218,7 @@ class GameRoomManager:
             game_state=GameState(),
             status=GameStatus.WAITING,
             created_at=datetime.now(),
+            last_activity=datetime.now(),
             max_players=max_players,
             num_decks=num_decks,
             initial_hand_size=initial_hand_size,
@@ -346,6 +372,45 @@ class GameRoomManager:
         """Remove WebSocket connection for a player"""
         if room_id in self.room_connections:
             self.room_connections[room_id].pop(player_id, None)
+
+    def touch_room(self, room_id: str):
+        """Update last_activity timestamp for a room."""
+        room = self.rooms.get(room_id)
+        if room:
+            room.last_activity = datetime.now()
+
+    def cleanup_stale_rooms(self):
+        """
+        Delete rooms that have been inactive too long.
+        Thresholds:
+          - WAITING rooms with no connected players: 30 minutes
+          - WAITING rooms with connected players:    2 hours
+          - PLAYING rooms with no connected players: 1 hour
+          - FINISHED rooms:                          15 minutes
+        """
+        now = datetime.now()
+        to_delete = []
+
+        for room_id, room in self.rooms.items():
+            age = (now - (room.last_activity or room.created_at)).total_seconds()
+            connected = sum(1 for p in room.players if p.is_connected)
+
+            if room.status == GameStatus.FINISHED and age > 15 * 60:
+                to_delete.append(room_id)
+            elif room.status == GameStatus.WAITING and connected == 0 and age > 30 * 60:
+                to_delete.append(room_id)
+            elif room.status == GameStatus.WAITING and age > 2 * 60 * 60:
+                to_delete.append(room_id)
+            elif room.status == GameStatus.PLAYING and connected == 0 and age > 60 * 60:
+                to_delete.append(room_id)
+
+        for room_id in to_delete:
+            self.rooms.pop(room_id, None)
+            self.room_connections.pop(room_id, None)
+            print(f"[Cleanup] Deleted stale room {room_id}")
+
+        if to_delete:
+            print(f"[Cleanup] Removed {len(to_delete)} stale room(s). Active rooms: {len(self.rooms)}")
     
     async def broadcast_to_room(self, room_id: str, message: dict, exclude_player: Optional[str] = None):
         """Broadcast message to all players in a room"""
@@ -726,6 +791,7 @@ async def join_room(room_id: str, request: JoinRoomRequest):
     """Join a room"""
     try:
         room, player_id = room_manager.join_room(room_id, request.username)
+        room_manager.touch_room(room_id)
         return {
             "room": room,
             "player_id": player_id,
@@ -850,6 +916,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
             player = next((p for p in room.players if p.player_id == player_id), None)
             if not player:
                 break
+
+            # Update last_activity on every player action
+            room_manager.touch_room(room_id)
             
             if msg_type == "play_card":
                 # Play a card from hand (Elimination/Sacrifice)
