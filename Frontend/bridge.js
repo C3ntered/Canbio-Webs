@@ -840,7 +840,7 @@ function renderBoard(room, yourPlayerId) {
             turnIndicator.style.backgroundColor = '#FF9800';
         } else if (room.status?.toLowerCase() === GAME_STATUS.GRACE_PERIOD) {
             turnIndicator.style.backgroundColor = '#9C27B0';
-            turnIndicator.innerHTML = 'Grace Period! Eliminate matching cards (10m) <br>';
+            turnIndicator.innerHTML = 'Grace Period! Eliminate matching cards (10s) <br>';
 
             const tallyBtn = document.createElement('button');
             tallyBtn.id = 'tally-scores-btn';

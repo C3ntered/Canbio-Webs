@@ -498,7 +498,7 @@ class GameRoomManager:
         room = self.rooms[room_id]
         room.status = GameStatus.GRACE_PERIOD
         room.game_state.game_phase = "grace_period"
-        room.grace_period_end = datetime.now() + timedelta(minutes=10)
+        room.grace_period_end = datetime.now() + timedelta(seconds=10)
 
     def tally_scores(self, room_id: str) -> Optional[str]:
         """Finalize scores and end the game (transition from grace period to finished)"""
