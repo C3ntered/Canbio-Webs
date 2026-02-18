@@ -80,23 +80,7 @@
             font-size: 14px;
         }
 
-        /* Game Board Layout */
-        #game-board {
-            width: 100%;
-            max-width: 1200px;
-            padding: 20px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            
-            /* Zoom out 15% */
-            zoom: 0.85;
-            -moz-transform: scale(0.85);
-            -moz-transform-origin: top center;
-            /* Compensate width for Firefox transform scaling */
-            /* Note: This is an approximation as transform doesn't reflow the container width */
-        }
+
         
         #room-info {
             background-color: rgba(0, 0, 0, 0.3);
@@ -691,10 +675,20 @@
         }
     
             /* Header/Sidebar Layout */
+    #game-board {
+        zoom: 0.8;
+        -moz-transform: scale(0.8);
+        -moz-transform-origin: 0 0;
+        width: 125%;
+        height: 125%;
+        padding: 0;
+        margin: 0;
+        max-width: none;
+    }
     #game-container {
         display: flex;
         flex-direction: column; /* Stack header and game */
-        min-height: 100vh; /* Allow full page scroll */
+        min-height: 100%; /* Allow full page scroll */
         width: 100%;
         overflow: visible;
     }
