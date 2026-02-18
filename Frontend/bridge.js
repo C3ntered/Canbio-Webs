@@ -840,7 +840,7 @@ function renderBoard(room, yourPlayerId) {
             turnIndicator.style.backgroundColor = '#FF9800';
         } else if (room.status?.toLowerCase() === GAME_STATUS.GRACE_PERIOD) {
             turnIndicator.style.backgroundColor = '#9C27B0';
-            turnIndicator.innerHTML = 'Grace Period! Eliminate matching cards (10m) <br>';
+            turnIndicator.innerHTML = 'Grace Period! Eliminate matching cards (10s) <br>';
 
             const tallyBtn = document.createElement('button');
             tallyBtn.id = 'tally-scores-btn';
@@ -1234,18 +1234,19 @@ const isRevealed = (activeLookIndicators[player.player_id] && activeLookIndicato
     const discardPile = document.getElementById('discard-pile');
     if (discardPile) {
         discardPile.onclick = () => {
-             if (latestRoomState) {
-                 const me = latestRoomState.players.find(p => p.player_id === playerContext.playerId);
-                 if (me && me.pending_drawn_card) {
-                     if (me.last_draw_source === 'deck') {
-                         resolveDraw('discard');
-                     } else {
+             // Robust check: Use global pendingDrawnCard state first
+             if (pendingDrawnCard) {
+                 if (latestRoomState) {
+                     const me = latestRoomState.players.find(p => p.player_id === playerContext.playerId);
+                     if (me && me.last_draw_source === 'discard') {
                          alert("You must swap when drawing from discard pile");
+                         return;
                      }
-                 } else {
-                     drawFromDiscard();
                  }
+                 // If drawn from deck (or state unknown), allow discard attempt
+                 resolveDraw('discard');
              } else {
+                 // No card held, try to draw from discard pile
                  drawFromDiscard();
              }
         };
