@@ -188,6 +188,10 @@ class CreateRoomRequest(BaseModel):
 class JoinRoomRequest(BaseModel):
     username: str
 
+# Constants for card deck creation
+SUITS = ("Hearts", "Diamonds", "Clubs", "Spades")
+RANKS = ("Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King")
+
 def get_card_value(card: Card, red_king_variant: bool = False) -> int:
     """Return the scoring value for a card according to Cambio rules."""
     if card.rank == "Ace":
@@ -345,15 +349,12 @@ class GameRoomManager:
     
     def create_deck(self, num_decks: int = 1) -> List[Card]:
         """Create one or more standard 54-card decks (52 cards + 2 Jokers per deck)"""
-        suits = ["Hearts", "Diamonds", "Clubs", "Spades"]
-        ranks = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Jack", "Queen", "King"]
-        
         deck = []
         # Create the specified number of decks
         for _ in range(num_decks):
             # Add standard 52 cards
-            for suit in suits:
-                for rank in ranks:
+            for suit in SUITS:
+                for rank in RANKS:
                     deck.append(Card(suit=suit, rank=rank))
             # Add 2 Jokers per deck
             deck.append(Card(suit="Joker", rank="Joker"))
