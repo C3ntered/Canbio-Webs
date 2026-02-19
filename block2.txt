@@ -1,0 +1,88 @@
+        .game-card {
+            padding: 5px;
+            font-size: 14px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            background-color: white;
+            cursor: pointer;
+            width: 100px;  /* Unified width */
+            height: 140px; /* Unified height */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .game-card:hover {
+            background-color: #f5f5f5;
+            transform: translateY(-2px);
+            transition: transform 0.2s;
+        }
+
+        /* Opponent cards specific overrides if needed (removed tiny size) */
+        .opponent-cards button {
+            /* Now using .game-card dimensions via class or shared style */
+            width: 100px !important;
+            height: 140px !important;
+            font-size: 14px; /* Ensure font size is readable if text is shown */
+        }
+
+        /* Target Selection Overlay */
+        .target-selected {
+            border-color: #00acc1 !important;
+            border-width: 3px !important;
+        }
+        .target-selected::after {
+            content: "🎯";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 32px;
+            pointer-events: none;
+            z-index: 20;
+            text-shadow: 0 0 5px white;
+        }
+
+        /* Deck Pile Styling */
+        #deck-pile {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #deck-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+        #discard-pile {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #discard-pile:hover {
+            background-color: rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* Call Cambio Button Position */
+        #cambio-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #call-cambio-btn {
+            background-color: #f44336; /* Red/Orange distinctive color */
+            padding: 20px 30px;
+            font-size: 20px;
+            border-radius: 50px;
+            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
+        }
+        #call-cambio-btn:hover:not(:disabled) {
+            background-color: #d32f2f;
+        }

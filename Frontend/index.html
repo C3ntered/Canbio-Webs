@@ -235,17 +235,6 @@
             gap: 4px;
             justify-content: center;
         }
-        .opponent-cards button {
-            padding: 0;
-            border: 1px solid #333;
-            border-radius: 4px;
-            background: linear-gradient(135deg, #1565C0 0%, #0D47A1 100%); /* Blue back */
-            color: white;
-            cursor: pointer;
-            width: 40px;
-            height: 60px;
-            font-size: 0; /* Hide text unless revealed */
-        }
         .opponent-cards button:hover:not(:disabled) {
              transform: scale(1.05);
         }
@@ -535,13 +524,6 @@
             transition: transform 0.2s;
         }
         
-        /* Opponent cards specific overrides if needed (removed tiny size) */
-        .opponent-cards button {
-            /* Now using .game-card dimensions via class or shared style */
-            width: 100px !important;
-            height: 140px !important;
-            font-size: 14px; /* Ensure font size is readable if text is shown */
-        }
 
         /* Target Selection Overlay */
         .target-selected {
@@ -600,95 +582,6 @@
             background-color: #d32f2f;
         }
     
-        /* Shared Card Styles */
-        .game-card {
-            padding: 5px;
-            font-size: 14px;
-            border: 2px solid #333;
-            border-radius: 8px;
-            background-color: white;
-            cursor: pointer;
-            width: 100px;  /* Unified width */
-            height: 140px; /* Unified height */
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            font-weight: bold;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-            position: relative;
-        }
-        .game-card:hover {
-            background-color: #f5f5f5;
-            transform: translateY(-2px);
-            transition: transform 0.2s;
-        }
-        
-        /* Opponent cards specific overrides if needed (removed tiny size) */
-        .opponent-cards button {
-            /* Now using .game-card dimensions via class or shared style */
-            width: 100px !important;
-            height: 140px !important;
-            font-size: 14px; /* Ensure font size is readable if text is shown */
-        }
-
-        /* Target Selection Overlay */
-        .target-selected {
-            border-color: #00acc1 !important;
-            border-width: 3px !important;
-        }
-        .target-selected::after {
-            content: "🎯";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 32px;
-            pointer-events: none;
-            z-index: 20;
-            text-shadow: 0 0 5px white;
-        }
-
-        /* Deck Pile Styling */
-        #deck-pile {
-            background-color: rgba(255, 255, 255, 0.2);
-            padding: 20px;
-            border-radius: 12px;
-            text-align: center;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        #deck-pile:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-        #discard-pile {
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        #discard-pile:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.05);
-        }
-
-        /* Call Cambio Button Position */
-        #cambio-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #call-cambio-btn {
-            background-color: #f44336; /* Red/Orange distinctive color */
-            padding: 20px 30px;
-            font-size: 20px;
-            border-radius: 50px;
-            box-shadow: 0 6px 10px rgba(0,0,0,0.3);
-        }
-        #call-cambio-btn:hover:not(:disabled) {
-            background-color: #d32f2f;
-        }
     
             /* Header/Sidebar Layout */
     #game-container {
@@ -853,27 +746,11 @@
         border-radius: 12px 12px 0 0;
     }
 
-    /* Fix Peek Visuals: Add padding to opponent cards */
-    .opponent-cards button {
-        padding: 5px !important; /* Match .game-card padding */
-        box-sizing: border-box; /* Should already be inherited but safe to add */
-    }
-    
-    /* Ensure Turn Indicator is visible */
-    #turn-indicator {
-        text-align: center;
-        margin: 5px auto;
-        color: white;
-        text-shadow: 1px 1px 3px black;
-    }
-
-
-
-    /* Force opponent cards to match player cards exactly */
+    /* Fix Peek Visuals: Add padding to opponent cards and match player cards exactly */
     .opponent-cards button {
         width: 100px !important;
         height: 140px !important;
-        padding: 5px !important;
+        padding: 5px !important; /* Match .game-card padding */
         border: 2px solid #333 !important;
         border-radius: 8px !important;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.2) !important;
@@ -888,6 +765,14 @@
         background-color: white;
     }
     
+    /* Ensure Turn Indicator is visible */
+    #turn-indicator {
+        text-align: center;
+        margin: 5px auto;
+        color: white;
+        text-shadow: 1px 1px 3px black;
+    }
+
     /* Ensure card back gradient works when hidden */
     .opponent-cards button.card-back {
         background: linear-gradient(135deg, #1565C0 25%, #1976D2 25%, #1976D2 50%, #1565C0 50%, #1565C0 75%, #1976D2 75%, #1976D2 100%) !important;
