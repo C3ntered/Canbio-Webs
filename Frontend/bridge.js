@@ -1544,56 +1544,6 @@ function animateSwap(player1_id, card1_index, player2_id, card2_index, callback)
     }, 700);
 }
 
-// Debugging
-window.debugLook = function() {
-    notify('Debugging look indicator...');
-    const opponents = document.getElementById('opponents-container');
-    if (opponents && opponents.children.length > 0) {
-        const btn = opponents.children[0].querySelector('.opponent-cards button');
-        if (btn) {
-            btn.classList.add('being-looked-at');
-            setTimeout(() => btn.classList.remove('being-looked-at'), 3000);
-        } else {
-            notify('No opponent button found');
-        }
-    } else {
-        notify('No opponents found');
-    }
-};
-
-window.debugSwap = function() {
-    notify('Debugging swap...');
-    const myContainer = document.getElementById('card-container');
-    const oppContainer = document.getElementById('opponents-container');
-
-    if (myContainer && myContainer.children.length > 0 && oppContainer && oppContainer.children.length > 0) {
-        const myBtn = myContainer.children[0];
-        const oppBtn = oppContainer.children[0].querySelector('.opponent-cards button');
-
-        if (myBtn && oppBtn) {
-            const rect1 = myBtn.getBoundingClientRect();
-            const rect2 = oppBtn.getBoundingClientRect();
-
-            const clone1 = myBtn.cloneNode(true);
-            clone1.classList.add('swapping-clone');
-            clone1.style.top = rect1.top + 'px';
-            clone1.style.left = rect1.left + 'px';
-            clone1.style.width = rect1.width + 'px';
-            clone1.style.height = rect1.height + 'px';
-            document.body.appendChild(clone1);
-
-            setTimeout(() => {
-                clone1.style.top = rect2.top + 'px';
-                clone1.style.left = rect2.left + 'px';
-            }, 10);
-
-            setTimeout(() => {
-                document.body.removeChild(clone1);
-            }, 1000);
-        }
-    }
-};
-
 function applyIndicators() {
     for (const [pid, indices] of Object.entries(activeLookIndicators)) {
         for (const idx of Object.keys(indices)) {
