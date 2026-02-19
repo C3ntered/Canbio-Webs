@@ -1140,14 +1140,9 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                 player.hand[hand_index] = None
                 room.game_state.discard_pile.append(played_card)
 
-                # Elimination does NOT trigger abilities. "If and only if you draw a card from the deck...".
-                
-                # Check for win condition (empty hand)
-                winner_id = room_manager.check_win_condition(room_id)
-                if winner_id and room.status == GameStatus.PLAYING:
-                    room_manager.start_grace_period(room_id)
-                    await room_manager.broadcast_grace_period_started(room_id, "Empty hand! Grace Period started.")
-                
+                # Elimination does NOT trigger abilities and does NOT end the game on its own.
+                # Grace period only starts when Cambio is called and the final round concludes.
+
                 room = room_manager.get_room(room_id)
                 await room_manager.broadcast_to_room(room_id, {
                     "type": "card_played",
@@ -1628,11 +1623,6 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                         "room": room.model_dump(mode='json')
                     }
                 })
-
-                winner_id = room_manager.check_win_condition(room_id)
-                if winner_id and room.status == GameStatus.PLAYING:
-                    room_manager.start_grace_period(room_id)
-                    await room_manager.broadcast_grace_period_started(room_id, "Empty hand! Grace Period started.")
 
             elif msg_type == "reveal_card":
                 # Reveal a card to other players (memory aspect of Cambio)
