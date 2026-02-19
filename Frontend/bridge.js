@@ -5,6 +5,19 @@ const GAME_STATUS = {
     FINISHED: 'finished'
 };
 
+function escapeHTML(str) {
+    if (typeof str !== 'string') return str;
+    return str.replace(/[&<>"']/g, function(m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    });
+}
+
 // Auto-detect API base URL from current page location
 // Works when HTML is served via HTTP (recommended) or falls back to localhost for file://
 const getApiBase = () => {
@@ -212,7 +225,7 @@ function handleSocketMessage(event) {
                 if (modal && resultsDiv) {
                     modal.style.display = 'flex';
                     
-                    let html = `<p style="font-size:18px;">Winner: <strong>${winnerName}</strong></p>`;
+                    let html = `<p style="font-size:18px;">Winner: <strong>${escapeHTML(winnerName)}</strong></p>`;
                     html += `<table class="score-table">
                         <thead>
                             <tr>
@@ -244,7 +257,7 @@ function handleSocketMessage(event) {
                         cardsHtml += '</div>';
 
                         html += `<tr class="${rowClass}">
-                            <td>${p.username}${p.player_id === playerContext.playerId ? ' (You)' : ''}</td>
+                            <td>${escapeHTML(p.username)}${p.player_id === playerContext.playerId ? ' (You)' : ''}</td>
                             <td>${p.score}</td>
                             <td>${cardsHtml}</td>
                         </tr>`;
@@ -1249,19 +1262,29 @@ function renderCardContent(element, card) {
     // Top Corner
     const topDiv = document.createElement('div');
     topDiv.className = 'card-corner-top';
-    topDiv.innerHTML = `<span>${rankShort}</span><span>${symbol}</span>`;
+    const topRank = document.createElement('span');
+    topRank.textContent = rankShort;
+    const topSymbol = document.createElement('span');
+    topSymbol.textContent = symbol;
+    topDiv.appendChild(topRank);
+    topDiv.appendChild(topSymbol);
     element.appendChild(topDiv);
 
     // Center
     const centerDiv = document.createElement('div');
     centerDiv.className = 'card-center';
-    centerDiv.innerText = symbol;
+    centerDiv.textContent = symbol;
     element.appendChild(centerDiv);
 
     // Bottom Corner
     const bottomDiv = document.createElement('div');
     bottomDiv.className = 'card-corner-bottom';
-    bottomDiv.innerHTML = `<span>${rankShort}</span><span>${symbol}</span>`;
+    const bottomRank = document.createElement('span');
+    bottomRank.textContent = rankShort;
+    const bottomSymbol = document.createElement('span');
+    bottomSymbol.textContent = symbol;
+    bottomDiv.appendChild(bottomRank);
+    bottomDiv.appendChild(bottomSymbol);
     element.appendChild(bottomDiv);
 }
 
